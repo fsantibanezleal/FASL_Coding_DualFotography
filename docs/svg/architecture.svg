@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 600" font-family="Segoe UI, Arial, sans-serif">
+  <defs>
+    <marker id="arr" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#7aa2f7"/>
+    </marker>
+    <marker id="arr2" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#bb9af7"/>
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="900" height="600" fill="#1a1b26" rx="12"/>
+
+  <!-- Title -->
+  <text x="450" y="35" text-anchor="middle" font-size="22" font-weight="bold" fill="#c0caf5">
+    System Architecture — Dual Photography Lab
+  </text>
+
+  <!-- ============ Frontend Layer ============ -->
+  <rect x="30" y="60" width="840" height="100" rx="10" fill="#24283b" stroke="#7aa2f7" stroke-width="2"/>
+  <text x="60" y="85" font-size="14" font-weight="bold" fill="#7aa2f7">Frontend — Dash Web App (port 8050)</text>
+
+  <rect x="50" y="95" width="130" height="50" rx="6" fill="#1a1b26" stroke="#565f89" stroke-width="1"/>
+  <text x="115" y="118" text-anchor="middle" font-size="11" fill="#a9b1d6">Control Panel</text>
+  <text x="115" y="133" text-anchor="middle" font-size="9" fill="#565f89">dbc.Select, Buttons</text>
+
+  <rect x="200" y="95" width="130" height="50" rx="6" fill="#1a1b26" stroke="#565f89" stroke-width="1"/>
+  <text x="265" y="118" text-anchor="middle" font-size="11" fill="#a9b1d6">Image Display</text>
+  <text x="265" y="133" text-anchor="middle" font-size="9" fill="#565f89">Primal / Dual / Relight</text>
+
+  <rect x="350" y="95" width="130" height="50" rx="6" fill="#1a1b26" stroke="#565f89" stroke-width="1"/>
+  <text x="415" y="118" text-anchor="middle" font-size="11" fill="#a9b1d6">SVD Spectrum</text>
+  <text x="415" y="133" text-anchor="middle" font-size="9" fill="#565f89">Plotly Graph</text>
+
+  <rect x="500" y="95" width="130" height="50" rx="6" fill="#1a1b26" stroke="#565f89" stroke-width="1"/>
+  <text x="565" y="118" text-anchor="middle" font-size="11" fill="#a9b1d6">Analysis Panel</text>
+  <text x="565" y="133" text-anchor="middle" font-size="9" fill="#565f89">Rank, Cond. Number</text>
+
+  <rect x="650" y="95" width="130" height="50" rx="6" fill="#1a1b26" stroke="#565f89" stroke-width="1"/>
+  <text x="715" y="118" text-anchor="middle" font-size="11" fill="#a9b1d6">Relighting</text>
+  <text x="715" y="133" text-anchor="middle" font-size="9" fill="#565f89">Pattern Select + Result</text>
+
+  <!-- Arrow down -->
+  <line x1="450" y1="160" x2="450" y2="185" stroke="#7aa2f7" stroke-width="2" marker-end="url(#arr)"/>
+  <text x="470" y="178" font-size="10" fill="#565f89">Callbacks</text>
+
+  <!-- ============ Core Engine ============ -->
+  <rect x="30" y="190" width="840" height="130" rx="10" fill="#24283b" stroke="#bb9af7" stroke-width="2"/>
+  <text x="60" y="215" font-size="14" font-weight="bold" fill="#bb9af7">Core Engine — src/core/</text>
+
+  <rect x="50" y="230" width="220" height="75" rx="6" fill="#1a1b26" stroke="#bb9af7" stroke-width="1.5"/>
+  <text x="160" y="252" text-anchor="middle" font-size="12" font-weight="bold" fill="#c0caf5">TransportMatrix</text>
+  <text x="160" y="268" text-anchor="middle" font-size="10" fill="#a9b1d6">transport.py</text>
+  <text x="160" y="283" text-anchor="middle" font-size="9" fill="#565f89">T computation, SVD, forward()</text>
+  <text x="160" y="296" text-anchor="middle" font-size="9" fill="#565f89">dual(), relight(), save/load</text>
+
+  <rect x="290" y="230" width="220" height="75" rx="6" fill="#1a1b26" stroke="#bb9af7" stroke-width="1.5"/>
+  <text x="400" y="252" text-anchor="middle" font-size="12" font-weight="bold" fill="#c0caf5">DualPhotographer</text>
+  <text x="400" y="268" text-anchor="middle" font-size="10" fill="#a9b1d6">dual.py</text>
+  <text x="400" y="283" text-anchor="middle" font-size="9" fill="#565f89">Pipeline orchestrator</text>
+  <text x="400" y="296" text-anchor="middle" font-size="9" fill="#565f89">analyze_transport(), dual_image()</text>
+
+  <rect x="530" y="230" width="220" height="75" rx="6" fill="#1a1b26" stroke="#bb9af7" stroke-width="1.5"/>
+  <text x="640" y="252" text-anchor="middle" font-size="12" font-weight="bold" fill="#c0caf5">Pattern Generators</text>
+  <text x="640" y="268" text-anchor="middle" font-size="10" fill="#a9b1d6">patterns.py</text>
+  <text x="640" y="283" text-anchor="middle" font-size="9" fill="#565f89">Canonical, Hadamard</text>
+  <text x="640" y="296" text-anchor="middle" font-size="9" fill="#565f89">Bernoulli, Gray Code</text>
+
+  <!-- Arrows down to two modules -->
+  <line x1="300" y1="320" x2="230" y2="360" stroke="#bb9af7" stroke-width="2" marker-end="url(#arr2)"/>
+  <line x1="600" y1="320" x2="670" y2="360" stroke="#bb9af7" stroke-width="2" marker-end="url(#arr2)"/>
+
+  <!-- ============ Simulation Module ============ -->
+  <rect x="30" y="365" width="400" height="120" rx="10" fill="#24283b" stroke="#51cf66" stroke-width="2"/>
+  <text x="60" y="390" font-size="14" font-weight="bold" fill="#51cf66">Simulation — src/simulation/</text>
+
+  <rect x="50" y="400" width="170" height="70" rx="6" fill="#1a1b26" stroke="#51cf66" stroke-width="1"/>
+  <text x="135" y="420" text-anchor="middle" font-size="11" font-weight="bold" fill="#c0caf5">SyntheticScene</text>
+  <text x="135" y="435" text-anchor="middle" font-size="9" fill="#565f89">Ray-casting engine</text>
+  <text x="135" y="448" text-anchor="middle" font-size="9" fill="#565f89">Perspective projection</text>
+  <text x="135" y="461" text-anchor="middle" font-size="9" fill="#565f89">Occlusion testing</text>
+
+  <rect x="240" y="400" width="170" height="70" rx="6" fill="#1a1b26" stroke="#51cf66" stroke-width="1"/>
+  <text x="325" y="420" text-anchor="middle" font-size="11" font-weight="bold" fill="#c0caf5">VirtualRenderer</text>
+  <text x="325" y="435" text-anchor="middle" font-size="9" fill="#565f89">6 scene types</text>
+  <text x="325" y="448" text-anchor="middle" font-size="9" fill="#565f89">SVD rank comparison</text>
+  <text x="325" y="461" text-anchor="middle" font-size="9" fill="#565f89">End-to-end pipeline</text>
+
+  <!-- ============ Capture Module ============ -->
+  <rect x="470" y="365" width="400" height="120" rx="10" fill="#24283b" stroke="#e0af68" stroke-width="2"/>
+  <text x="500" y="390" font-size="14" font-weight="bold" fill="#e0af68">Physical Capture — src/capture/</text>
+
+  <rect x="490" y="400" width="110" height="70" rx="6" fill="#1a1b26" stroke="#e0af68" stroke-width="1"/>
+  <text x="545" y="420" text-anchor="middle" font-size="11" font-weight="bold" fill="#c0caf5">Camera</text>
+  <text x="545" y="435" text-anchor="middle" font-size="9" fill="#565f89">OpenCV capture</text>
+  <text x="545" y="448" text-anchor="middle" font-size="9" fill="#565f89">Frame averaging</text>
+
+  <rect x="615" y="400" width="110" height="70" rx="6" fill="#1a1b26" stroke="#e0af68" stroke-width="1"/>
+  <text x="670" y="420" text-anchor="middle" font-size="11" font-weight="bold" fill="#c0caf5">Projector</text>
+  <text x="670" y="435" text-anchor="middle" font-size="9" fill="#565f89">Screen display</text>
+  <text x="670" y="448" text-anchor="middle" font-size="9" fill="#565f89">Fullscreen patterns</text>
+
+  <rect x="740" y="400" width="110" height="70" rx="6" fill="#1a1b26" stroke="#e0af68" stroke-width="1"/>
+  <text x="795" y="420" text-anchor="middle" font-size="11" font-weight="bold" fill="#c0caf5">Pipeline</text>
+  <text x="795" y="435" text-anchor="middle" font-size="9" fill="#565f89">Sync capture</text>
+  <text x="795" y="448" text-anchor="middle" font-size="9" fill="#565f89">Ambient subtract</text>
+
+  <!-- ============ Tech Stack ============ -->
+  <rect x="30" y="500" width="840" height="45" rx="10" fill="#24283b" stroke="#565f89" stroke-width="1"/>
+  <text x="60" y="527" font-size="12" font-weight="bold" fill="#565f89">Tech Stack:</text>
+  <text x="150" y="527" font-size="11" fill="#7aa2f7">Python 3.12</text>
+  <text x="250" y="527" font-size="11" fill="#bb9af7">NumPy / SciPy (SVD, linalg)</text>
+  <text x="440" y="527" font-size="11" fill="#51cf66">Dash + Plotly</text>
+  <text x="560" y="527" font-size="11" fill="#e0af68">OpenCV</text>
+  <text x="640" y="527" font-size="11" fill="#f7768e">Pillow</text>
+  <text x="720" y="527" font-size="11" fill="#ff9e64">DBC (Bootstrap)</text>
+
+  <!-- ============ Legend box ============ -->
+  <rect x="770" y="60" width="90" height="100" rx="6" fill="#1a1b26" stroke="#565f89" stroke-width="1"/>
+  <rect x="778" y="72" width="12" height="8" rx="2" fill="#7aa2f7"/>
+  <text x="795" y="80" font-size="9" fill="#a9b1d6">Frontend</text>
+  <rect x="778" y="88" width="12" height="8" rx="2" fill="#bb9af7"/>
+  <text x="795" y="96" font-size="9" fill="#a9b1d6">Core</text>
+  <rect x="778" y="104" width="12" height="8" rx="2" fill="#51cf66"/>
+  <text x="795" y="112" font-size="9" fill="#a9b1d6">Simulation</text>
+  <rect x="778" y="120" width="12" height="8" rx="2" fill="#e0af68"/>
+  <text x="795" y="128" font-size="9" fill="#a9b1d6">Capture</text>
+  <rect x="778" y="136" width="12" height="8" rx="2" fill="#565f89"/>
+  <text x="795" y="144" font-size="9" fill="#a9b1d6">Stack</text>
+</svg>

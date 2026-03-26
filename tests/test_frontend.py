@@ -91,13 +91,13 @@ class TestCallbacks:
         """Simulation callback returns all 6 outputs with valid types."""
         primal, dual, fig, analysis, status, store = run_simulation(
             n_clicks=1,
-            scene_type="flat_wall",
+            scene_type="box_and_wall",
             resolution_str="8",
             albedo_str="0.8",
             svd_rank_str="0",
             inter_reflections=False,
-            proj_x_str="-0.3",
-            cam_x_str="0.3",
+            proj_x_str="-1.5",
+            cam_x_str="1.5",
         )
         assert primal.startswith("data:image/png;base64,")
         assert dual.startswith("data:image/png;base64,")
@@ -118,13 +118,13 @@ class TestCallbacks:
         """Simulation works with SVD truncation enabled."""
         primal, dual, fig, analysis, status, store = run_simulation(
             n_clicks=1,
-            scene_type="corner",
+            scene_type="two_planes",
             resolution_str="8",
             albedo_str="0.5",
             svd_rank_str="4",
             inter_reflections=False,
-            proj_x_str="-0.5",
-            cam_x_str="0.5",
+            proj_x_str="-1.5",
+            cam_x_str="1.5",
         )
         assert primal.startswith("data:image/png;base64,")
         # Check that SVD rank alert is present in analysis
@@ -135,13 +135,13 @@ class TestCallbacks:
         """Simulation works with inter-reflections enabled."""
         primal, dual, fig, analysis, status, store = run_simulation(
             n_clicks=1,
-            scene_type="corner",
+            scene_type="corner_room",
             resolution_str="8",
             albedo_str="0.8",
             svd_rank_str="0",
             inter_reflections=True,
-            proj_x_str="-0.3",
-            cam_x_str="0.3",
+            proj_x_str="-1.5",
+            cam_x_str="1.5",
         )
         assert primal.startswith("data:image/png;base64,")
 
@@ -150,13 +150,13 @@ class TestCallbacks:
         # First run a simulation to get store_data
         _, _, _, _, _, store = run_simulation(
             n_clicks=1,
-            scene_type="flat_wall",
+            scene_type="box_and_wall",
             resolution_str="8",
             albedo_str="0.8",
             svd_rank_str="0",
             inter_reflections=False,
-            proj_x_str="-0.3",
-            cam_x_str="0.3",
+            proj_x_str="-1.5",
+            cam_x_str="1.5",
         )
         pattern_img, result_img = run_relighting(
             n_clicks=1,
@@ -173,7 +173,7 @@ class TestCallbacks:
             run_relighting(n_clicks=1, pattern_name="white", store_data=None)
 
     @pytest.mark.parametrize("scene", [
-        "flat_wall", "corner", "v_groove", "sphere", "checkerboard", "textured_wall"
+        "box_and_wall", "sphere_on_plane", "corner_room", "two_planes", "cylinder_text", "flat_textured"
     ])
     def test_all_scene_types_work(self, scene):
         """Every scene type can be simulated without errors."""

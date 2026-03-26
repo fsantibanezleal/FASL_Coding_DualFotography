@@ -2,34 +2,44 @@
 
 Interactive application for **Dual Photography** — a computational imaging technique that reconstructs how a scene looks from a projector's viewpoint by exploiting **Helmholtz reciprocity** and the **light transport matrix**.
 
-Based on: *Sen et al., "Dual Photography", ACM SIGGRAPH 2005*.
+Based on the work by Sen et al. (SIGGRAPH 2005).
 
-## What is Dual Photography?
+## Demo
+
+![Dual Photography Lab — Demo with results](docs/img/app_demo_readme.png)
+
+*Box+Wall scene at 48x48 resolution. Left: primal image (camera view). Right: dual image (projector view via T-transpose). Bottom: relighting with different illumination patterns.*
+
+## Concept
+
+![Dual Photography Concept](docs/svg/concept_dual_photography.svg)
 
 When a projector illuminates a scene and a camera captures the result, the relationship is linear:
 
 ```
-camera_image = T @ projector_pattern
+camera_image = T · projector_pattern
 ```
 
-where **T** is the *light transport matrix*. Each entry `T[i,j]` encodes how much light from projector pixel `j` reaches camera pixel `i` through all paths (direct, reflected, scattered).
-
-By **Helmholtz reciprocity**, light paths are physically reversible. Transposing T swaps the roles of projector and camera:
+where **T** is the *light transport matrix*. By **Helmholtz reciprocity**, transposing T swaps the roles of projector and camera:
 
 ```
-dual_image = T^T @ virtual_illumination
+dual_image = T^T · virtual_illumination
 ```
 
-This produces the scene as seen **from the projector's position**, illuminated from the camera — without any additional hardware or captures.
+This produces the scene as seen **from the projector's position** — without any additional hardware.
+
+## Architecture
+
+![System Architecture](docs/svg/architecture.svg)
 
 ## Features
 
-- **Synthetic Simulation**: Generate transport matrices for configurable 3D scenes (flat wall, corner, V-groove, sphere, checkerboard) without hardware
-- **SVD Analysis**: Visualize singular value spectrum, effective rank, and condition number
-- **Dual Image Generation**: Compute and display the dual photograph via T-transpose
-- **Interactive Relighting**: Apply different illumination patterns and see the relighted scene in real-time
-- **Physical Capture** (optional): Acquire transport matrices using a webcam and screen-as-projector
-- **Inter-reflections**: Simulate multi-bounce light transport via iterative radiosity
+- **Ray-Cast Simulation**: Compute transport matrices for 3D scenes with proper perspective projection, occlusion testing, and Lambertian BRDF — no physical hardware needed
+- **6 Scene Types**: Box+Wall (occlusion demo), Sphere on Plane, Corner Room, Two Angled Planes, Cylinder with Text, Flat Textured Wall
+- **SVD Analysis**: Visualize singular value spectrum, effective rank, condition number, and energy distribution
+- **Dual Image Generation**: Compute the dual photograph via T-transpose — see the scene from the projector's viewpoint
+- **Interactive Relighting**: Apply 10 different illumination patterns (left/right half, spot, stripes, random) and see the relighted scene instantly
+- **Physical Capture** (optional): Acquire transport matrices using a webcam and screen-as-projector with ambient subtraction
 - **Multiple Pattern Types**: Canonical, Hadamard, Bernoulli (compressed sensing), Gray code
 
 ## Quick Start
@@ -47,7 +57,7 @@ pip install -e ".[dev]"
 python -m src.frontend.app
 ```
 
-Open **http://127.0.0.1:8050** in your browser.
+Open **http://127.0.0.1:8050** in your browser. Select a scene, click "Run Simulation".
 
 ### 3. Run Tests
 
@@ -55,63 +65,67 @@ Open **http://127.0.0.1:8050** in your browser.
 pytest tests/ -v
 ```
 
-## Architecture
+70 tests covering core engine, simulation, and frontend callbacks.
+
+## Project Structure
 
 ```
 src/
 ├── core/              # Core dual photography engine
 │   ├── patterns.py    # Illumination pattern generators (Hadamard, Bernoulli, etc.)
-│   ├── transport.py   # Transport matrix: computation, SVD, forward/dual operations
+│   ├── transport.py   # Transport matrix: SVD, forward/dual/relight operations
 │   └── dual.py        # High-level DualPhotographer orchestrator
-├── simulation/        # Synthetic scene simulation
-│   ├── scene.py       # 3D scene generator (geometry, normals, albedo)
+├── simulation/        # Ray-cast 3D scene simulation
+│   ├── scene.py       # Scene primitives, ray-casting, occlusion, texture mapping
 │   └── renderer.py    # Virtual renderer pipeline
 ├── capture/           # Physical acquisition (optional hardware)
 │   ├── camera.py      # Webcam capture via OpenCV
 │   ├── projector.py   # Screen-based pattern projection
 │   └── acquisition.py # Synchronized capture pipeline
 └── frontend/          # Dash web application
-    ├── app.py         # Main dashboard with interactive controls
+    ├── app.py         # Dashboard with interactive controls
     └── assets/        # CSS styles
+
+docs/
+├── 01_technical_reference.md   # Mathematical foundations and algorithms
+├── 02_user_guide.md            # How to use the application
+├── 03_history.md               # Development history and changelog
+├── 04_references.md            # Bibliography and references
+├── svg/                        # Diagrams
+│   ├── concept_dual_photography.svg
+│   ├── architecture.svg
+│   └── transport_matrix_theory.svg
+└── img/                        # Generated demo images
 ```
+
+## Documentation
+
+See the [docs/](docs/) folder for:
+
+- [Technical Reference](docs/01_technical_reference.md) — Mathematical foundations, ray-casting algorithm, scene types
+- [User Guide](docs/02_user_guide.md) — Installation, usage, recommended experiments
+- [Development History](docs/03_history.md) — Changelog and architectural decisions
+- [References](docs/04_references.md) — Bibliography and related work
+- [Transport Matrix Theory (SVG)](docs/svg/transport_matrix_theory.svg) — Visual explanation of T, SVD, and applications
 
 ## Mathematical Background
 
 ### Transport Matrix Acquisition
 
-The transport matrix T can be measured by projecting known patterns and capturing the camera response:
-
 | Method | Patterns Needed | Quality | Speed |
 |--------|----------------|---------|-------|
-| Canonical (one-at-a-time) | N = p*q | Exact | Slow |
-| Hadamard (multiplexed) | N = p*q | Optimal SNR | Medium |
-| Bernoulli (compressed sensing) | N << p*q | Good | Fast |
+| Canonical (one-at-a-time) | N = p·q | Exact | Slow |
+| Hadamard (multiplexed) | N = p·q | Optimal SNR | Medium |
+| Bernoulli (compressed sensing) | N << p·q | Good | Fast |
 
-### SVD and Low-Rank Approximation
-
-The transport matrix admits a truncated SVD:
+### Key Equations
 
 ```
-T ≈ U_k @ diag(S_k) @ V_k^T
+Primal:     c = T · p           (camera sees what projector illuminates)
+Dual:       p' = T^T · c'       (projector "sees" what camera illuminates)
+SVD:        T ≈ U_k · Σ_k · V_k^T   (rank-k approximation)
+Relight:    c_new = T · p_new   (new illumination, no re-capture)
 ```
-
-where keeping only the top-k singular values acts as denoising and compression. The application visualizes how reconstruction quality degrades with rank truncation.
-
-### Inter-reflections
-
-For scenes with concavities (corners, grooves), light bounces between surfaces. This is modeled via iterative radiosity:
-
-```
-T_total = sum_{b=0}^{B} (rho * F)^b @ T_direct
-```
-
-where F is the form factor matrix and rho is the surface albedo.
-
-## References
-
-1. Sen, P., Chen, B., Garg, G., Marschner, S., Horowitz, M., Levoy, M., & Lensch, H. P. A. (2005). **Dual Photography**. *ACM SIGGRAPH / Transactions on Graphics, 24*(3), 745-755.
-2. Sen, P., & Darabi, S. (2009). **Compressive Dual Photography**. *Computer Graphics Forum (Eurographics), 28*(2), 609-618.
-3. Hua, B. S., Sato, I., & Low, K. L. (2013). **Direct and Progressive Reconstruction of Dual Photography Images**. *IEEE ICIP*.
 
 ## License
 

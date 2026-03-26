@@ -43,20 +43,20 @@ server = app.server  # Expose for WSGI deployment
 # Layout constants
 # ---------------------------------------------------------------------------
 SCENE_OPTIONS = [
-    {"label": "Flat Wall", "value": "flat_wall"},
-    {"label": "Corner (90 deg)", "value": "corner"},
-    {"label": "V-Groove", "value": "v_groove"},
-    {"label": "Hemisphere", "value": "sphere"},
-    {"label": "Checkerboard", "value": "checkerboard"},
-    {"label": "Textured Wall", "value": "textured_wall"},
+    {"label": "Box + Wall (occlusion)", "value": "box_and_wall"},
+    {"label": "Sphere on Plane", "value": "sphere_on_plane"},
+    {"label": "Corner Room", "value": "corner_room"},
+    {"label": "Two Angled Planes", "value": "two_planes"},
+    {"label": "Cylinder with Text", "value": "cylinder_text"},
+    {"label": "Flat Textured Wall", "value": "flat_textured"},
 ]
 
 RESOLUTION_OPTIONS = [
-    {"label": "8 x 8 (fast)", "value": "8"},
-    {"label": "12 x 12", "value": "12"},
-    {"label": "16 x 16", "value": "16"},
+    {"label": "16 x 16 (fast)", "value": "16"},
     {"label": "24 x 24", "value": "24"},
-    {"label": "32 x 32 (slow)", "value": "32"},
+    {"label": "32 x 32", "value": "32"},
+    {"label": "48 x 48 (detailed)", "value": "48"},
+    {"label": "64 x 64 (slow)", "value": "64"},
 ]
 
 RELIGHT_OPTIONS = [
@@ -161,7 +161,7 @@ def _control_panel() -> dbc.Card:
             dbc.Select(
                 id="scene-type",
                 options=SCENE_OPTIONS,
-                value="corner",
+                value="box_and_wall",
                 className="mb-3",
             ),
 
@@ -169,7 +169,7 @@ def _control_panel() -> dbc.Card:
             dbc.Select(
                 id="resolution",
                 options=RESOLUTION_OPTIONS,
-                value="16",
+                value="32",
                 className="mb-3",
             ),
 
@@ -209,9 +209,9 @@ def _control_panel() -> dbc.Card:
                         id="proj-x",
                         options=[
                             {"label": str(v), "value": str(v)}
-                            for v in [-1.0, -0.7, -0.5, -0.3, -0.1, 0.0]
+                            for v in [-3.0, -2.5, -2.0, -1.5, -1.0, -0.5]
                         ],
-                        value="-0.3",
+                        value="-1.5",
                     ),
                 ], width=6),
                 dbc.Col([
@@ -220,9 +220,9 @@ def _control_panel() -> dbc.Card:
                         id="cam-x",
                         options=[
                             {"label": str(v), "value": str(v)}
-                            for v in [0.0, 0.1, 0.3, 0.5, 0.7, 1.0]
+                            for v in [0.5, 1.0, 1.5, 2.0, 2.5, 3.0]
                         ],
-                        value="0.3",
+                        value="1.5",
                     ),
                 ], width=6),
             ], className="mb-3"),
@@ -487,8 +487,8 @@ def run_simulation(
         )
 
         rank = svd_rank if 0 < svd_rank < resolution * resolution else None
-        proj_pos = np.array([proj_x, 0.0, 1.0])
-        cam_pos = np.array([cam_x, 0.0, 1.0])
+        proj_pos = np.array([proj_x, 0.5, 2.0])
+        cam_pos = np.array([cam_x, 0.5, 2.0])
 
         result = renderer.run_simulation(
             scene_type=scene,

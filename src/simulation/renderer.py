@@ -1,11 +1,13 @@
 """Virtual renderer for dual photography simulation.
 
 Provides a complete simulation pipeline that generates synthetic transport
-matrices and produces primal, dual, and relighted images without any
-physical hardware.
+matrices via ray-casting and produces primal, dual, and relighted images
+without any physical hardware.
 
-This is the primary entry point for testing dual photography algorithms
-in a controlled environment with known ground truth.
+The renderer creates 3D scenes with proper perspective projection,
+occlusion, and Lambertian shading to produce transport matrices that
+are far from diagonal -- resulting in visually distinct primal and dual
+images that demonstrate Helmholtz reciprocity.
 """
 
 from __future__ import annotations
@@ -39,23 +41,27 @@ class SimulationResult:
 
 
 class VirtualRenderer:
-    """Simulates the full dual photography pipeline without hardware.
+    """Simulates the full dual photography pipeline via ray-casting.
 
-    Generates a synthetic scene, computes its transport matrix analytically,
-    and produces primal and dual images for visualization and algorithm
-    validation.
+    Creates 3D scenes with depth variation and occlusion, computes the
+    transport matrix by casting rays from both projector and camera, and
+    generates primal/dual images for visualization.
+
+    The key insight: dual photography requires a transport matrix that is
+    far from diagonal. This happens when the scene has 3D geometry that
+    creates different views from projector and camera positions.
 
     Example:
-        >>> renderer = VirtualRenderer(proj_shape=(16, 16), cam_shape=(16, 16))
-        >>> result = renderer.run_simulation(scene_type=SceneType.CORNER)
-        >>> print(result.dual_image.shape)  # (16, 16)
-        >>> print(result.analysis['effective_rank_90'])
+        >>> renderer = VirtualRenderer(proj_shape=(32, 32), cam_shape=(32, 32))
+        >>> result = renderer.run_simulation(scene_type=SceneType.BOX_AND_WALL)
+        >>> print(result.dual_image.shape)  # (32, 32)
+        >>> # The dual image shows the scene from the projector's viewpoint
     """
 
     def __init__(
         self,
-        proj_shape: tuple[int, int] = (16, 16),
-        cam_shape: tuple[int, int] = (16, 16),
+        proj_shape: tuple[int, int] = (32, 32),
+        cam_shape: tuple[int, int] = (32, 32),
         albedo: float = 0.8,
         inter_reflections: bool = False,
         bounce_limit: int = 3,
@@ -66,8 +72,8 @@ class VirtualRenderer:
             proj_shape: Virtual projector resolution (height, width).
             cam_shape: Virtual camera resolution (height, width).
             albedo: Default surface albedo for synthetic scenes.
-            inter_reflections: Enable inter-reflection simulation.
-            bounce_limit: Maximum number of light bounces.
+            inter_reflections: Enable inter-reflection simulation (reserved for future).
+            bounce_limit: Maximum number of light bounces (reserved for future).
         """
         self.proj_shape = proj_shape
         self.cam_shape = cam_shape
@@ -77,7 +83,7 @@ class VirtualRenderer:
 
     def run_simulation(
         self,
-        scene_type: SceneType = SceneType.FLAT_WALL,
+        scene_type: SceneType = SceneType.BOX_AND_WALL,
         proj_pos: np.ndarray | None = None,
         cam_pos: np.ndarray | None = None,
         svd_rank: int | None = None,
@@ -86,18 +92,18 @@ class VirtualRenderer:
         """Run a complete dual photography simulation.
 
         Steps:
-        1. Create synthetic scene with specified geometry
-        2. Compute transport matrix T analytically
-        3. Generate primal image (camera view under uniform illumination)
-        4. Generate dual image (projector view via T^T)
-        5. Analyze transport matrix properties
+        1. Create a 3D scene with the specified geometry
+        2. Compute the transport matrix T via ray-casting
+        3. Generate primal image: c = T @ uniform_pattern
+        4. Generate dual image: p_dual = T^T @ uniform_illumination
+        5. Analyze transport matrix (SVD spectrum, effective rank)
 
         Args:
-            scene_type: Type of synthetic scene geometry.
-            proj_pos: Custom projector position (3D). If None, uses default.
-            cam_pos: Custom camera position (3D). If None, uses default.
-            svd_rank: If specified, use truncated SVD for dual image.
-            illumination: Custom illumination for dual image. If None, uniform.
+            scene_type: Type of 3D scene geometry.
+            proj_pos: Custom projector position. Uses scene default if None.
+            cam_pos: Custom camera position. Uses scene default if None.
+            svd_rank: If set, use truncated SVD for the dual image.
+            illumination: Custom illumination for dual image. Uniform if None.
 
         Returns:
             SimulationResult with all computed images and analysis.
@@ -107,8 +113,6 @@ class VirtualRenderer:
             "proj_shape": self.proj_shape,
             "cam_shape": self.cam_shape,
             "albedo": self.albedo,
-            "inter_reflections": self.inter_reflections,
-            "bounce_limit": self.bounce_limit,
         }
         if proj_pos is not None:
             scene_kwargs["proj_pos"] = proj_pos
@@ -128,7 +132,7 @@ class VirtualRenderer:
         uniform_pattern = np.ones(self.proj_shape, dtype=np.float64)
         primal = photographer.transport.forward(uniform_pattern)
 
-        # Dual: scene as seen from projector position
+        # Dual: scene as seen from projector position via T^T
         dual = photographer.dual_image(illumination=illumination, svd_rank=svd_rank)
 
         # Analysis
@@ -139,7 +143,6 @@ class VirtualRenderer:
             "proj_shape": self.proj_shape,
             "cam_shape": self.cam_shape,
             "albedo": self.albedo,
-            "inter_reflections": self.inter_reflections,
             "proj_pos": scene.proj_pos.tolist(),
             "cam_pos": scene.cam_pos.tolist(),
         }
@@ -175,9 +178,6 @@ class VirtualRenderer:
         illumination: np.ndarray | None = None,
     ) -> list[tuple[int, np.ndarray, float]]:
         """Compare dual images at different SVD truncation ranks.
-
-        Useful for visualizing the effect of low-rank approximation
-        on dual image quality.
 
         Args:
             transport: The transport matrix to analyze.
