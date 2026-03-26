@@ -63,6 +63,7 @@ class VirtualRenderer:
         proj_shape: tuple[int, int] = (32, 32),
         cam_shape: tuple[int, int] = (32, 32),
         albedo: float = 0.8,
+        n_bounces: int = 0,
         inter_reflections: bool = False,
         bounce_limit: int = 3,
     ):
@@ -72,14 +73,17 @@ class VirtualRenderer:
             proj_shape: Virtual projector resolution (height, width).
             cam_shape: Virtual camera resolution (height, width).
             albedo: Default surface albedo for synthetic scenes.
-            inter_reflections: Enable inter-reflection simulation (reserved for future).
-            bounce_limit: Maximum number of light bounces (reserved for future).
+            n_bounces: Number of indirect light bounces (0 = direct only).
+            inter_reflections: Deprecated, use n_bounces instead.
+            bounce_limit: Deprecated, use n_bounces instead.
         """
         self.proj_shape = proj_shape
         self.cam_shape = cam_shape
         self.albedo = albedo
-        self.inter_reflections = inter_reflections
-        self.bounce_limit = bounce_limit
+        self.n_bounces = n_bounces
+        # Backwards compat
+        if inter_reflections and n_bounces == 0:
+            self.n_bounces = bounce_limit
 
     def run_simulation(
         self,
@@ -113,6 +117,7 @@ class VirtualRenderer:
             "proj_shape": self.proj_shape,
             "cam_shape": self.cam_shape,
             "albedo": self.albedo,
+            "n_bounces": self.n_bounces,
         }
         if proj_pos is not None:
             scene_kwargs["proj_pos"] = proj_pos

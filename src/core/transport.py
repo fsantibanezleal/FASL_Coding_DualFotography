@@ -228,15 +228,105 @@ class TransportMatrix:
     def singular_value_spectrum(self) -> np.ndarray:
         """Return the singular value spectrum of T.
 
-        Useful for analyzing the effective dimensionality of the light
-        transport and choosing an appropriate truncation rank.
-
         Returns:
             Array of singular values in descending order.
         """
         if self.S is None:
             self.compute_svd()
         return self.S.copy()
+
+    def compute_nmf(self, n_components: int = 16) -> tuple[np.ndarray, np.ndarray]:
+        """Non-negative Matrix Factorization: T ≈ W @ H.
+
+        NMF is superior to SVD for transport matrices because T is
+        physically non-negative (light adds, never subtracts). The
+        resulting basis functions W correspond to interpretable light
+        transport "modes" (direct illumination, inter-reflections, etc.).
+
+        Args:
+            n_components: Number of NMF components (basis functions).
+
+        Returns:
+            (W, H) where W is (cam_pixels, n_components) and
+            H is (n_components, proj_pixels). T ≈ W @ H.
+        """
+        from sklearn.decomposition import NMF
+
+        T_nn = np.maximum(self.T, 0)
+        model = NMF(n_components=min(n_components, min(T_nn.shape)),
+                     max_iter=300, init="nndsvda", random_state=42)
+        W = model.fit_transform(T_nn)
+        H = model.components_
+        return W, H
+
+    def frequency_analysis(self) -> dict:
+        """2D Fourier frequency analysis of the transport matrix.
+
+        Reveals the frequency content of light transport:
+        - Multi-bounce T has faster high-frequency rolloff (lowpass)
+        - Specular T has more high-frequency content than diffuse T
+        - The radial profile shows isotropy of transport
+
+        Returns:
+            Dict with 'power_spectrum' (2D), 'radial_profile' (1D),
+            'dc_fraction' (float), 'high_freq_fraction' (float).
+        """
+        T_fft = np.fft.fftshift(np.fft.fft2(self.T))
+        power = np.abs(T_fft) ** 2
+
+        # Radial average
+        cy, cx = self.T.shape[0] // 2, self.T.shape[1] // 2
+        Y, X = np.ogrid[:self.T.shape[0], :self.T.shape[1]]
+        R = np.sqrt((X - cx) ** 2 + (Y - cy) ** 2).astype(int)
+        max_r = min(cy, cx)
+        radial = np.zeros(max_r)
+        for r in range(max_r):
+            mask = R == r
+            if mask.any():
+                radial[r] = power[mask].mean()
+
+        total_power = power.sum()
+        dc = power[cy, cx] if total_power > 0 else 0
+        dc_frac = dc / (total_power + 1e-10)
+
+        # High frequency = outer 50% of radial range
+        half_r = max_r // 2
+        hf = radial[half_r:].sum() / (radial.sum() + 1e-10)
+
+        return {
+            "power_spectrum": power,
+            "radial_profile": radial,
+            "dc_fraction": float(dc_frac),
+            "high_freq_fraction": float(hf),
+        }
+
+    def sparsity(self) -> dict:
+        """Analyze the sparsity structure of T.
+
+        Returns:
+            Dict with 'nnz' (non-zero count), 'nnz_fraction',
+            'density_per_column' (mean non-zeros per column).
+        """
+        nnz = np.count_nonzero(self.T > 1e-8)
+        total = self.T.size
+        return {
+            "nnz": int(nnz),
+            "nnz_fraction": nnz / total,
+            "density_per_column": nnz / self.T.shape[1],
+        }
+
+    def reciprocity_error(self) -> float:
+        """Measure deviation from Helmholtz reciprocity (T vs T^T).
+
+        For a purely diffuse scene with equal projector/camera geometry,
+        T should equal T^T. This metric quantifies how asymmetric the
+        transport is (due to specular BRDF, different FOVs, etc.).
+
+        Returns:
+            Relative Frobenius norm of (T - T^T) / ||T||.
+        """
+        diff = self.T - self.T.T
+        return float(np.linalg.norm(diff) / (np.linalg.norm(self.T) + 1e-10))
 
     def save(self, path: str) -> None:
         """Save the transport matrix and metadata to a .npz file.
