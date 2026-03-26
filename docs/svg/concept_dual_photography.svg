@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 520" font-family="Segoe UI, Arial, sans-serif">
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#4a9eff"/>
+    </marker>
+    <marker id="arrowred" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#ff6b6b"/>
+    </marker>
+    <marker id="arrowgreen" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#51cf66"/>
+    </marker>
+    <linearGradient id="projGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4a9eff;stop-opacity:0.3"/>
+      <stop offset="100%" style="stop-color:#4a9eff;stop-opacity:0.1"/>
+    </linearGradient>
+    <linearGradient id="camGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ff6b6b;stop-opacity:0.3"/>
+      <stop offset="100%" style="stop-color:#ff6b6b;stop-opacity:0.1"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="900" height="520" fill="#1a1b26" rx="12"/>
+
+  <!-- Title -->
+  <text x="450" y="35" text-anchor="middle" font-size="22" font-weight="bold" fill="#c0caf5">
+    Dual Photography — Core Concept
+  </text>
+  <text x="450" y="55" text-anchor="middle" font-size="13" fill="#565f89">
+    Sen et al., SIGGRAPH 2005 — Helmholtz Reciprocity
+  </text>
+
+  <!-- ============ PRIMAL CONFIGURATION (top) ============ -->
+  <text x="450" y="90" text-anchor="middle" font-size="16" font-weight="bold" fill="#7aa2f7">
+    Primal Configuration
+  </text>
+
+  <!-- Projector (left) -->
+  <rect x="50" y="110" width="100" height="70" rx="8" fill="url(#projGrad)" stroke="#4a9eff" stroke-width="2"/>
+  <text x="100" y="140" text-anchor="middle" font-size="13" font-weight="bold" fill="#4a9eff">Projector</text>
+  <text x="100" y="158" text-anchor="middle" font-size="11" fill="#7aa2f7">Pattern p</text>
+  <!-- Projector lens -->
+  <circle cx="150" cy="145" r="8" fill="none" stroke="#4a9eff" stroke-width="2"/>
+
+  <!-- Light rays from projector -->
+  <line x1="158" y1="140" x2="370" y2="120" stroke="#4a9eff" stroke-width="1.5" stroke-dasharray="6,3" marker-end="url(#arrowhead)"/>
+  <line x1="158" y1="145" x2="370" y2="155" stroke="#4a9eff" stroke-width="1.5" stroke-dasharray="6,3" marker-end="url(#arrowhead)"/>
+  <line x1="158" y1="150" x2="370" y2="190" stroke="#4a9eff" stroke-width="1.5" stroke-dasharray="6,3" marker-end="url(#arrowhead)"/>
+
+  <!-- Scene (center) -->
+  <rect x="380" y="105" width="140" height="110" rx="6" fill="#24283b" stroke="#565f89" stroke-width="2"/>
+  <text x="450" y="130" text-anchor="middle" font-size="13" font-weight="bold" fill="#c0caf5">3D Scene</text>
+  <!-- Objects in scene -->
+  <rect x="400" y="140" width="30" height="30" fill="#7aa2f7" opacity="0.5" rx="3"/>
+  <circle cx="470" cy="165" r="18" fill="#bb9af7" opacity="0.5"/>
+  <rect x="405" y="180" width="80" height="15" fill="#565f89" rx="2"/>
+  <text x="450" y="195" text-anchor="middle" font-size="9" fill="#a9b1d6">surfaces + geometry</text>
+
+  <!-- Reflected light to camera -->
+  <line x1="520" y1="120" x2="700" y2="130" stroke="#ff6b6b" stroke-width="1.5" stroke-dasharray="6,3" marker-end="url(#arrowred)"/>
+  <line x1="520" y1="155" x2="700" y2="140" stroke="#ff6b6b" stroke-width="1.5" stroke-dasharray="6,3" marker-end="url(#arrowred)"/>
+  <line x1="520" y1="190" x2="700" y2="150" stroke="#ff6b6b" stroke-width="1.5" stroke-dasharray="6,3" marker-end="url(#arrowred)"/>
+
+  <!-- Camera (right) -->
+  <circle cx="700" cy="140" r="8" fill="none" stroke="#ff6b6b" stroke-width="2"/>
+  <rect x="710" y="110" width="100" height="70" rx="8" fill="url(#camGrad)" stroke="#ff6b6b" stroke-width="2"/>
+  <text x="760" y="140" text-anchor="middle" font-size="13" font-weight="bold" fill="#ff6b6b">Camera</text>
+  <text x="760" y="158" text-anchor="middle" font-size="11" fill="#f7768e">Image c</text>
+
+  <!-- Equation -->
+  <rect x="250" y="225" width="400" height="35" rx="6" fill="#24283b" stroke="#7aa2f7" stroke-width="1"/>
+  <text x="450" y="248" text-anchor="middle" font-size="16" font-weight="bold" fill="#c0caf5">
+    c = T · p
+  </text>
+  <text x="600" y="248" font-size="11" fill="#565f89">(camera_image = Transport × pattern)</text>
+
+  <!-- ============ DUAL CONFIGURATION (bottom) ============ -->
+  <text x="450" y="295" text-anchor="middle" font-size="16" font-weight="bold" fill="#51cf66">
+    Dual Configuration (Helmholtz Reciprocity)
+  </text>
+
+  <!-- Camera as light source (left, swapped role) -->
+  <rect x="50" y="315" width="100" height="70" rx="8" fill="url(#camGrad)" stroke="#ff6b6b" stroke-width="2" stroke-dasharray="5,3"/>
+  <text x="100" y="340" text-anchor="middle" font-size="11" font-weight="bold" fill="#ff6b6b">Camera</text>
+  <text x="100" y="355" text-anchor="middle" font-size="10" fill="#f7768e">as Light Source</text>
+  <text x="100" y="370" text-anchor="middle" font-size="10" fill="#f7768e">illum. c'</text>
+  <circle cx="150" cy="350" r="8" fill="none" stroke="#ff6b6b" stroke-width="2" stroke-dasharray="4,2"/>
+
+  <!-- Light rays (reversed) -->
+  <line x1="158" y1="345" x2="370" y2="325" stroke="#51cf66" stroke-width="1.5" stroke-dasharray="6,3" marker-end="url(#arrowgreen)"/>
+  <line x1="158" y1="350" x2="370" y2="360" stroke="#51cf66" stroke-width="1.5" stroke-dasharray="6,3" marker-end="url(#arrowgreen)"/>
+  <line x1="158" y1="355" x2="370" y2="395" stroke="#51cf66" stroke-width="1.5" stroke-dasharray="6,3" marker-end="url(#arrowgreen)"/>
+
+  <!-- Same scene -->
+  <rect x="380" y="310" width="140" height="110" rx="6" fill="#24283b" stroke="#565f89" stroke-width="2"/>
+  <text x="450" y="335" text-anchor="middle" font-size="13" font-weight="bold" fill="#c0caf5">Same Scene</text>
+  <rect x="400" y="345" width="30" height="30" fill="#7aa2f7" opacity="0.5" rx="3"/>
+  <circle cx="470" cy="370" r="18" fill="#bb9af7" opacity="0.5"/>
+  <rect x="405" y="385" width="80" height="15" fill="#565f89" rx="2"/>
+
+  <!-- Light to projector-as-camera -->
+  <line x1="520" y1="325" x2="700" y2="335" stroke="#51cf66" stroke-width="1.5" stroke-dasharray="6,3" marker-end="url(#arrowgreen)"/>
+  <line x1="520" y1="360" x2="700" y2="345" stroke="#51cf66" stroke-width="1.5" stroke-dasharray="6,3" marker-end="url(#arrowgreen)"/>
+  <line x1="520" y1="395" x2="700" y2="355" stroke="#51cf66" stroke-width="1.5" stroke-dasharray="6,3" marker-end="url(#arrowgreen)"/>
+
+  <!-- Projector as camera (right, swapped role) -->
+  <circle cx="700" cy="345" r="8" fill="none" stroke="#4a9eff" stroke-width="2" stroke-dasharray="4,2"/>
+  <rect x="710" y="315" width="100" height="70" rx="8" fill="url(#projGrad)" stroke="#4a9eff" stroke-width="2" stroke-dasharray="5,3"/>
+  <text x="760" y="340" text-anchor="middle" font-size="11" font-weight="bold" fill="#4a9eff">Projector</text>
+  <text x="760" y="355" text-anchor="middle" font-size="10" fill="#7aa2f7">as Camera</text>
+  <text x="760" y="370" text-anchor="middle" font-size="10" fill="#7aa2f7">dual p'</text>
+
+  <!-- Dual equation -->
+  <rect x="220" y="430" width="460" height="35" rx="6" fill="#24283b" stroke="#51cf66" stroke-width="1"/>
+  <text x="450" y="453" text-anchor="middle" font-size="16" font-weight="bold" fill="#c0caf5">
+    p' = T&#x1D40; · c'
+  </text>
+  <text x="610" y="453" font-size="11" fill="#565f89">(dual_image = Transpose × illumination)</text>
+
+  <!-- Key insight box -->
+  <rect x="200" y="475" width="500" height="35" rx="6" fill="#1a1b26" stroke="#e0af68" stroke-width="1.5" stroke-dasharray="4,2"/>
+  <text x="450" y="497" text-anchor="middle" font-size="13" fill="#e0af68">
+    Key Insight: Transposing T swaps the roles of projector and camera
+  </text>
+</svg>

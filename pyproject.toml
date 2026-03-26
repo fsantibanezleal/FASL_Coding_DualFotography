@@ -1,0 +1,57 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dual-photography"
+version = "1.0.0"
+description = "Dual Photography: Light Transport Matrix acquisition, dual image synthesis, and scene relighting via Helmholtz reciprocity."
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+    {name = "Felipe Santibañez-Leal", email = "fsantibanezleal@ug.uchile.cl"},
+]
+keywords = ["dual-photography", "light-transport", "computational-photography", "helmholtz-reciprocity", "SVD"]
+
+dependencies = [
+    "numpy>=1.26",
+    "scipy>=1.12",
+    "opencv-python>=4.9",
+    "scikit-image>=0.22",
+    "dash>=2.18",
+    "dash-bootstrap-components>=1.6",
+    "plotly>=5.22",
+    "Pillow>=10.2",
+]
+
+[project.optional-dependencies]
+capture = [
+    "opencv-contrib-python>=4.9",
+]
+compressed = [
+    "cvxpy>=1.5",
+]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+    "ruff>=0.4",
+]
+
+[project.scripts]
+dual-photo = "src.frontend.app:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

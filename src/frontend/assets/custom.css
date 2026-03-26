@@ -1,0 +1,23 @@
+/* Custom styles for the Dual Photography Lab dashboard */
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.card {
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    margin-bottom: 1rem;
+}
+
+.card-title {
+    font-weight: 600;
+}
+
+img {
+    border-radius: 4px;
+    image-rendering: pixelated;
+}
+
+.text-muted {
+    font-size: 0.85rem;
+}
