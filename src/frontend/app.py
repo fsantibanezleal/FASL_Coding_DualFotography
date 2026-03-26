@@ -44,6 +44,10 @@ server = app.server  # Expose for WSGI deployment
 # ---------------------------------------------------------------------------
 SCENE_OPTIONS = [
     {"label": "Box + Wall (occlusion)", "value": "box_and_wall"},
+    {"label": "Cornell Box (classic)", "value": "cornell_box"},
+    {"label": "Gallery (multi-depth)", "value": "gallery"},
+    {"label": "Staircase (parallax)", "value": "staircase"},
+    {"label": "Mirror Room (specular)", "value": "mirror_room"},
     {"label": "Sphere on Plane", "value": "sphere_on_plane"},
     {"label": "Corner Room", "value": "corner_room"},
     {"label": "Two Angled Planes", "value": "two_planes"},
@@ -76,18 +80,26 @@ RELIGHT_OPTIONS = [
 def _numpy_to_b64_img(arr: np.ndarray) -> str:
     """Convert a 2D numpy array to a base64-encoded PNG for display.
 
+    Uses percentile-based normalization to handle outliers and low-contrast
+    images robustly. The 1st and 99th percentiles define the display range,
+    preventing a few bright pixels from washing out the rest.
+
     Args:
-        arr: 2D array with values in [0, max]. Will be normalized to [0, 255].
+        arr: 2D array with values in [0, max].
 
     Returns:
         Base64-encoded PNG data URI string suitable for html.Img src attribute.
     """
     arr = arr.astype(np.float64)
-    vmin, vmax = arr.min(), arr.max()
+    # Percentile-based normalization: robust to outliers
+    vmin = float(np.percentile(arr, 1))
+    vmax = float(np.percentile(arr, 99))
+    if vmax - vmin < 1e-10:
+        vmin, vmax = arr.min(), arr.max()
     if vmax - vmin > 1e-10:
         arr = (arr - vmin) / (vmax - vmin)
     else:
-        arr = np.zeros_like(arr)
+        arr = np.full_like(arr, 0.5)  # Constant -> mid-gray, not black
     arr_uint8 = (arr * 255).clip(0, 255).astype(np.uint8)
     img = Image.fromarray(arr_uint8, mode="L")
     # Upscale for visibility using nearest-neighbor
@@ -192,10 +204,16 @@ def _control_panel() -> dbc.Card:
                 className="mb-3",
             ),
 
-            dbc.Checkbox(
-                id="inter-reflections",
-                label="Enable Inter-reflections",
-                value=False,
+            dbc.Label("Light Bounces (indirect)", html_for="n-bounces"),
+            dbc.Select(
+                id="n-bounces",
+                options=[
+                    {"label": "0 (direct only)", "value": "0"},
+                    {"label": "1 bounce", "value": "1"},
+                    {"label": "2 bounces", "value": "2"},
+                    {"label": "3 bounces", "value": "3"},
+                ],
+                value="0",
                 className="mb-3",
             ),
 
@@ -446,20 +464,20 @@ def update_svd_options(resolution_str: str):
     State("resolution", "value"),
     State("albedo", "value"),
     State("svd-rank", "value"),
-    State("inter-reflections", "value"),
+    State("n-bounces", "value"),
     State("proj-x", "value"),
     State("cam-x", "value"),
     prevent_initial_call=True,
 )
 def run_simulation(
     n_clicks, scene_type, resolution_str, albedo_str, svd_rank_str,
-    inter_reflections, proj_x_str, cam_x_str,
+    n_bounces_str, proj_x_str, cam_x_str,
 ):
     """Execute a dual photography simulation and update all visualizations.
 
     This is the main callback that:
     1. Creates a synthetic scene with the selected parameters
-    2. Computes the transport matrix analytically
+    2. Computes the transport matrix via ray-casting
     3. Generates primal (camera view) and dual (projector view) images
     4. Performs SVD analysis of the transport matrix
     5. Updates all UI components with results
@@ -473,17 +491,17 @@ def run_simulation(
         svd_rank = int(svd_rank_str)
         proj_x = float(proj_x_str)
         cam_x = float(cam_x_str)
+        n_bounces = int(n_bounces_str)
 
         scene = SceneType(scene_type)
         proj_shape = (resolution, resolution)
         cam_shape = (resolution, resolution)
-        use_inter = bool(inter_reflections)
 
         renderer = VirtualRenderer(
             proj_shape=proj_shape,
             cam_shape=cam_shape,
             albedo=albedo,
-            inter_reflections=use_inter,
+            n_bounces=n_bounces,
         )
 
         rank = svd_rank if 0 < svd_rank < resolution * resolution else None
@@ -534,18 +552,26 @@ def run_simulation(
             xaxis=dict(title="Index"),
         )
 
-        # Analysis summary
+        # Extended analysis: sparsity, reciprocity, frequency
+        sparsity = result.transport.sparsity()
+        recip_err = result.transport.reciprocity_error()
+        freq = result.transport.frequency_analysis()
+
         cond = result.analysis["condition_number"]
         cond_str = f"{cond:.2f}" if cond < 1e10 else f"{cond:.2e}"
         analysis_children = [
-            html.P([html.Strong("Matrix size: "),
-                    f"{result.transport.T.shape[0]} x {result.transport.T.shape[1]}"]),
-            html.P([html.Strong("Condition number: "), cond_str]),
-            html.P([html.Strong("Rank for 90% energy: "),
-                    str(result.analysis["effective_rank_90"])]),
-            html.P([html.Strong("Rank for 99% energy: "),
-                    str(result.analysis["effective_rank_99"])]),
-            html.P([html.Strong("Total singular values: "), str(len(sv))]),
+            html.P([html.Strong("Matrix: "),
+                    f"{result.transport.T.shape[0]}x{result.transport.T.shape[1]}"]),
+            html.P([html.Strong("Condition: "), cond_str]),
+            html.P([html.Strong("Rank 90%/99%: "),
+                    f"{result.analysis['effective_rank_90']} / {result.analysis['effective_rank_99']}"]),
+            html.P([html.Strong("Sparsity: "),
+                    f"{sparsity['nnz_fraction']*100:.1f}% non-zero"]),
+            html.P([html.Strong("Reciprocity error: "),
+                    f"{recip_err:.4f}",
+                    html.Span(" (0=symmetric)", className="text-muted small")]),
+            html.P([html.Strong("Freq. DC/HF: "),
+                    f"{freq['dc_fraction']*100:.0f}% / {freq['high_freq_fraction']*100:.0f}%"]),
         ]
         if rank:
             analysis_children.append(

@@ -48,16 +48,26 @@ The initial simulation produced boring, nearly-identical primal and dual images.
 
 ## Changelog
 
+### v2.0.0 (2026-03-26) — Vectorized Engine, Specular BRDF, Multi-Bounce
+
+- **Vectorized ray-casting**: All ray-scene intersections use NumPy batch operations. 32x32 scenes compute in ~0.4s (was ~4s with scalar loops).
+- **Material system**: New `Material` class with diffuse, specular, shininess, and mirror properties. Replaces raw albedo floats.
+- **Blinn-Phong BRDF**: Specular highlights that are view-dependent — dramatically different between primal and dual images. Mirror Room scene achieves primal-dual correlation of only 0.15.
+- **Multi-bounce indirect illumination**: Iterative radiosity adds light bouncing between surfaces. Cornell Box with 3 bounces has 52% more total light energy than direct-only.
+- **4 new complex scenes**: Cornell Box (enclosed room with boxes), Gallery (museum with paintings, pedestal, sphere, columns), Staircase (stepped geometry with strong parallax), Mirror Room (high-specular walls and shiny sphere).
+- **New textures**: gradient, concentric circles, cross/plus sign patterns.
+- **Frontend**: Light bounce control (0-3 bounces), 10 scene types in dropdown.
+- **98 tests** covering materials, vectorized intersection, specular BRDF, multi-bounce transport, all scenes.
+
 ### v1.1.0 (2026-03-26) — Ray-Casting Engine
 
-- **BREAKING**: Scene types changed. Old types (`flat_wall`, `corner`, `v_groove`, `sphere`, `checkerboard`, `textured_wall`) replaced with new 3D scenes
+- **BREAKING**: Scene types changed from flat analytical to 3D ray-cast
 - Rewrote `SyntheticScene` with proper perspective ray-casting
 - Added `SceneObject` class with plane/sphere intersection and texture mapping
 - Added occlusion (shadow ray) testing
 - Built-in pixel-art textures: letters (F, D, P, L, A, R), checkerboard, arrow
 - Default resolution increased to 32×32
 - Default camera-projector separation increased to 3.0 units
-- Added tests: `test_transport_not_diagonal`, `test_primal_dual_differ`
 - 70 tests total, all passing
 
 ### v1.0.0 (2026-03-26) — Initial Release

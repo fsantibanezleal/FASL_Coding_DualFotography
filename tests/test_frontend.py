@@ -95,7 +95,7 @@ class TestCallbacks:
             resolution_str="8",
             albedo_str="0.8",
             svd_rank_str="0",
-            inter_reflections=False,
+            n_bounces_str="0",
             proj_x_str="-1.5",
             cam_x_str="1.5",
         )
@@ -112,7 +112,7 @@ class TestCallbacks:
         """Simulation is not triggered when n_clicks is 0."""
         from dash.exceptions import PreventUpdate
         with pytest.raises(PreventUpdate):
-            run_simulation(0, "flat_wall", "8", "0.8", "0", False, "-0.3", "0.3")
+            run_simulation(0, "flat_textured", "8", "0.8", "0", "0", "-1.5", "1.5")
 
     def test_run_simulation_with_svd_rank(self):
         """Simulation works with SVD truncation enabled."""
@@ -122,7 +122,7 @@ class TestCallbacks:
             resolution_str="8",
             albedo_str="0.5",
             svd_rank_str="4",
-            inter_reflections=False,
+            n_bounces_str="0",
             proj_x_str="-1.5",
             cam_x_str="1.5",
         )
@@ -139,7 +139,7 @@ class TestCallbacks:
             resolution_str="8",
             albedo_str="0.8",
             svd_rank_str="0",
-            inter_reflections=True,
+            n_bounces_str="1",
             proj_x_str="-1.5",
             cam_x_str="1.5",
         )
@@ -154,7 +154,7 @@ class TestCallbacks:
             resolution_str="8",
             albedo_str="0.8",
             svd_rank_str="0",
-            inter_reflections=False,
+            n_bounces_str="0",
             proj_x_str="-1.5",
             cam_x_str="1.5",
         )
@@ -173,7 +173,8 @@ class TestCallbacks:
             run_relighting(n_clicks=1, pattern_name="white", store_data=None)
 
     @pytest.mark.parametrize("scene", [
-        "box_and_wall", "sphere_on_plane", "corner_room", "two_planes", "cylinder_text", "flat_textured"
+        "box_and_wall", "cornell_box", "gallery", "staircase", "mirror_room",
+        "sphere_on_plane", "corner_room", "two_planes", "cylinder_text", "flat_textured"
     ])
     def test_all_scene_types_work(self, scene):
         """Every scene type can be simulated without errors."""
@@ -183,9 +184,9 @@ class TestCallbacks:
             resolution_str="8",
             albedo_str="0.8",
             svd_rank_str="0",
-            inter_reflections=False,
-            proj_x_str="-0.3",
-            cam_x_str="0.3",
+            n_bounces_str="0",
+            proj_x_str="-1.5",
+            cam_x_str="1.5",
         )
         assert primal.startswith("data:image/png;base64,")
         assert store is not None
