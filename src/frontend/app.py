@@ -80,18 +80,26 @@ RELIGHT_OPTIONS = [
 def _numpy_to_b64_img(arr: np.ndarray) -> str:
     """Convert a 2D numpy array to a base64-encoded PNG for display.
 
+    Uses percentile-based normalization to handle outliers and low-contrast
+    images robustly. The 1st and 99th percentiles define the display range,
+    preventing a few bright pixels from washing out the rest.
+
     Args:
-        arr: 2D array with values in [0, max]. Will be normalized to [0, 255].
+        arr: 2D array with values in [0, max].
 
     Returns:
         Base64-encoded PNG data URI string suitable for html.Img src attribute.
     """
     arr = arr.astype(np.float64)
-    vmin, vmax = arr.min(), arr.max()
+    # Percentile-based normalization: robust to outliers
+    vmin = float(np.percentile(arr, 1))
+    vmax = float(np.percentile(arr, 99))
+    if vmax - vmin < 1e-10:
+        vmin, vmax = arr.min(), arr.max()
     if vmax - vmin > 1e-10:
         arr = (arr - vmin) / (vmax - vmin)
     else:
-        arr = np.zeros_like(arr)
+        arr = np.full_like(arr, 0.5)  # Constant -> mid-gray, not black
     arr_uint8 = (arr * 255).clip(0, 255).astype(np.uint8)
     img = Image.fromarray(arr_uint8, mode="L")
     # Upscale for visibility using nearest-neighbor
@@ -544,18 +552,26 @@ def run_simulation(
             xaxis=dict(title="Index"),
         )
 
-        # Analysis summary
+        # Extended analysis: sparsity, reciprocity, frequency
+        sparsity = result.transport.sparsity()
+        recip_err = result.transport.reciprocity_error()
+        freq = result.transport.frequency_analysis()
+
         cond = result.analysis["condition_number"]
         cond_str = f"{cond:.2f}" if cond < 1e10 else f"{cond:.2e}"
         analysis_children = [
-            html.P([html.Strong("Matrix size: "),
-                    f"{result.transport.T.shape[0]} x {result.transport.T.shape[1]}"]),
-            html.P([html.Strong("Condition number: "), cond_str]),
-            html.P([html.Strong("Rank for 90% energy: "),
-                    str(result.analysis["effective_rank_90"])]),
-            html.P([html.Strong("Rank for 99% energy: "),
-                    str(result.analysis["effective_rank_99"])]),
-            html.P([html.Strong("Total singular values: "), str(len(sv))]),
+            html.P([html.Strong("Matrix: "),
+                    f"{result.transport.T.shape[0]}x{result.transport.T.shape[1]}"]),
+            html.P([html.Strong("Condition: "), cond_str]),
+            html.P([html.Strong("Rank 90%/99%: "),
+                    f"{result.analysis['effective_rank_90']} / {result.analysis['effective_rank_99']}"]),
+            html.P([html.Strong("Sparsity: "),
+                    f"{sparsity['nnz_fraction']*100:.1f}% non-zero"]),
+            html.P([html.Strong("Reciprocity error: "),
+                    f"{recip_err:.4f}",
+                    html.Span(" (0=symmetric)", className="text-muted small")]),
+            html.P([html.Strong("Freq. DC/HF: "),
+                    f"{freq['dc_fraction']*100:.0f}% / {freq['high_freq_fraction']*100:.0f}%"]),
         ]
         if rank:
             analysis_children.append(

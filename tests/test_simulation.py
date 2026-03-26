@@ -24,11 +24,17 @@ class TestMaterials:
         assert mat.shininess == 32.0
         assert mat.is_mirror is False
 
-    def test_material_texture_sampling(self):
+    def test_material_texture_storage(self):
         tex = make_checker_texture(8, 2)
         mat = Material(diffuse=tex)
-        assert mat.sample_diffuse(np.array([0.0, 0.0])) in (0.15, 0.9)
-        assert mat.sample_diffuse(np.array([0.5, 0.5])) in (0.15, 0.9)
+        assert isinstance(mat.diffuse, np.ndarray)
+        assert mat.diffuse.shape == (8, 8)
+
+    def test_material_pbr_conversion(self):
+        """Legacy specular/shininess auto-converts to PBR roughness/metallic."""
+        mat = Material(diffuse=0.8, specular=0.5, shininess=128)
+        assert mat.roughness <= 0.5  # High shininess -> low roughness
+        assert mat.metallic > 0
 
     def test_checker_texture_shape(self):
         tex = make_checker_texture(32, 4)

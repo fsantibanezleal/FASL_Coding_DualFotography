@@ -42,45 +42,40 @@ class SceneType(Enum):
 
 @dataclass
 class Material:
-    """Surface material with diffuse and specular components.
+    """PBR surface material with GGX microfacet specular model.
 
-    Implements Blinn-Phong shading: the reflected intensity at a surface
-    point is a weighted combination of Lambertian diffuse and specular
-    highlight contributions. The specular component makes the dual image
-    especially interesting since highlights are strongly view-dependent.
+    Uses the metallic/roughness workflow common in physically-based rendering:
+    - roughness: Controls microfacet distribution width (0=mirror, 1=fully rough)
+    - metallic: Interpolates between dielectric and metallic behavior
+    - f0: Fresnel reflectance at normal incidence
+
+    For dielectrics (metallic=0): albedo goes to diffuse, f0=0.04.
+    For metals (metallic=1): no diffuse, f0=albedo (colored specular).
 
     Attributes:
         diffuse: Diffuse reflectance (albedo). Scalar or 2D texture array.
-        specular: Specular reflectance coefficient in [0, 1].
-        shininess: Phong exponent controlling highlight sharpness. Higher = tighter.
-        is_mirror: If True, surface acts as a perfect mirror for multi-bounce.
+        roughness: Surface roughness [0, 1]. Controls GGX NDF width.
+        metallic: Metallic factor [0, 1].
+        f0: Base Fresnel reflectance at normal incidence.
+        specular: Legacy specular coefficient (converted to roughness internally).
+        shininess: Legacy Phong exponent (converted to roughness internally).
+        is_mirror: If True, surface acts as a perfect mirror.
     """
 
     diffuse: float | np.ndarray = 0.7
+    roughness: float = 0.5
+    metallic: float = 0.0
+    f0: float = 0.04
     specular: float = 0.0
     shininess: float = 32.0
     is_mirror: bool = False
 
-    def sample_diffuse(self, uv: np.ndarray | None = None) -> float:
-        """Sample diffuse albedo at given UV coordinates.
-
-        Args:
-            uv: Optional (u, v) coordinates in [0, 1]^2 for texture lookup.
-
-        Returns:
-            Diffuse reflectance value.
-        """
-        if isinstance(self.diffuse, (int, float)):
-            return float(self.diffuse)
-
-        if uv is None:
-            return float(np.mean(self.diffuse))
-
-        tex = self.diffuse
-        h, w = tex.shape
-        px = int(np.clip(uv[0] * (w - 1), 0, w - 1))
-        py = int(np.clip((1.0 - uv[1]) * (h - 1), 0, h - 1))
-        return float(tex[py, px])
+    def __post_init__(self):
+        # Legacy compat: convert specular/shininess to roughness if set
+        if self.specular > 0.01 and self.roughness == 0.5:
+            self.roughness = max(0.05, 1.0 - (self.shininess / 128.0))
+            self.metallic = min(self.specular, 0.9)
+            self.f0 = 0.04 + self.specular * 0.5
 
 
 # ---------------------------------------------------------------------------
@@ -455,16 +450,16 @@ class SyntheticScene:
     def _sample_materials(
         self, obj_ids: np.ndarray, uvs: np.ndarray
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-        """Look up material properties for each hit by object ID.
+        """Look up PBR material properties for each hit by object ID.
 
         Returns:
-            (diffuse_vals, specular_vals, shininess_vals, is_mirror_flags)
+            (albedo, roughness, metallic, f0) arrays of shape (N,).
         """
         N = obj_ids.shape[0]
-        diffuse = np.zeros(N)
-        specular = np.zeros(N)
-        shininess = np.full(N, 32.0)
-        is_mirror = np.zeros(N, dtype=bool)
+        albedo = np.zeros(N)
+        roughness = np.full(N, 0.5)
+        metallic = np.zeros(N)
+        f0 = np.full(N, 0.04)
 
         obj_map = {obj.obj_id: obj for obj in self.objects}
         for oid, obj in obj_map.items():
@@ -473,215 +468,214 @@ class SyntheticScene:
                 continue
             mat = obj.material
             if isinstance(mat.diffuse, (int, float)):
-                diffuse[mask] = float(mat.diffuse)
+                albedo[mask] = float(mat.diffuse)
             else:
-                # Texture lookup per pixel
                 tex = mat.diffuse
                 h, w = tex.shape
                 px = np.clip((uvs[mask, 0] * (w - 1)).astype(int), 0, w - 1)
                 py = np.clip(((1.0 - uvs[mask, 1]) * (h - 1)).astype(int), 0, h - 1)
-                diffuse[mask] = tex[py, px]
-            specular[mask] = mat.specular
-            shininess[mask] = mat.shininess
-            is_mirror[mask] = mat.is_mirror
+                albedo[mask] = tex[py, px]
+            roughness[mask] = mat.roughness
+            metallic[mask] = mat.metallic
+            f0[mask] = mat.f0
 
-        return diffuse, specular, shininess, is_mirror
+        return albedo, roughness, metallic, f0
 
     # -------------------------------------------------------------------
     # Transport matrix computation
     # -------------------------------------------------------------------
 
     def compute_transport_matrix(self) -> np.ndarray:
-        """Compute the light transport matrix via vectorized ray-casting.
+        """Compute the light transport matrix with GGX BRDF and shadow testing.
 
-        Algorithm:
-        1. Generate all projector rays and camera rays in batch
-        2. Trace both sets against the scene
-        3. For each projector pixel j that hits the scene, evaluate
-           Blinn-Phong BRDF contribution to every camera pixel i that
-           sees approximately the same surface point
-        4. Test occlusion with shadow rays
-        5. Optionally add multi-bounce indirect illumination
+        Uses physically-based Cook-Torrance GGX microfacet BRDF with
+        Schlick Fresnel and Smith geometric shadowing. The inner loop
+        over projector pixels is scalar, but all per-pixel operations
+        (candidate matching, BRDF evaluation, shadow rays) are vectorized.
 
-        The inner loop over projector pixels remains scalar, but the
-        per-pixel operations (matching against all camera hits, shadow
-        rays, BRDF evaluation) are fully vectorized.
+        Multi-bounce indirect illumination uses Neumann series:
+            T_total = T_direct + F @ T_direct + F^2 @ T_direct + ...
 
         Returns:
             Transport matrix T of shape (cam_pixels, proj_pixels).
         """
+        from src.core.brdf import evaluate_brdf_batch
+
         ph, pw = self.proj_shape
         ch, cw = self.cam_shape
         n_proj = ph * pw
         n_cam = ch * cw
 
-        # Generate all rays
+        # Generate and trace all rays
         p_fwd, p_right, p_up = self._look_at(
             self.proj_pos, self.proj_target, self.proj_fov, self.proj_shape)
         c_fwd, c_right, c_up = self._look_at(
             self.cam_pos, self.cam_target, self.cam_fov, self.cam_shape)
 
-        proj_origins, proj_dirs = self._generate_rays(
+        _, proj_dirs = self._generate_rays(
             self.proj_pos, p_fwd, p_right, p_up, self.proj_shape)
-        cam_origins, cam_dirs = self._generate_rays(
+        _, cam_dirs = self._generate_rays(
             self.cam_pos, c_fwd, c_right, c_up, self.cam_shape)
 
-        # Trace all camera rays once
-        c_hit, c_t, c_pts, c_nrm, c_uvs, c_oid = self._trace_batch(cam_origins, cam_dirs)
+        proj_origins = np.broadcast_to(self.proj_pos, proj_dirs.shape).copy()
+        cam_origins = np.broadcast_to(self.cam_pos, cam_dirs.shape).copy()
 
-        # Trace all projector rays once
+        c_hit, c_t, c_pts, c_nrm, c_uvs, c_oid = self._trace_batch(cam_origins, cam_dirs)
         p_hit, p_t, p_pts, p_nrm, p_uvs, p_oid = self._trace_batch(proj_origins, proj_dirs)
 
-        # Pre-fetch camera material properties
-        c_diff, c_spec, c_shin, c_mirr = self._sample_materials(c_oid, c_uvs)
+        # Pre-fetch all projector-hit materials in one call
+        p_albedo, p_rough, p_metal, p_f0 = self._sample_materials(p_oid, p_uvs)
 
-        # Pixel footprint for matching threshold
+        # Adaptive pixel footprint for surface-point matching
         max_dim = max(ph, pw)
         base_footprint = np.tan(np.radians(self.proj_fov) / max_dim)
 
+        # Adaptive shadow bias: scale with mean scene distance
+        mean_dist = np.mean(p_t[p_hit]) if np.any(p_hit) else 1.0
+        shadow_bias = max(1e-3, mean_dist * 1e-3)
+
         T = np.zeros((n_cam, n_proj), dtype=np.float64)
+
+        # Direction from any surface hit to the camera (constant for pinhole)
+        to_cam_global = self.cam_pos  # will subtract hit_point per j
 
         for j in range(n_proj):
             if not p_hit[j]:
                 continue
 
-            hit_point = p_pts[j]
-            hit_normal = p_nrm[j]
+            hp = p_pts[j]
+            hn = p_nrm[j]
 
-            # Material at projector hit
-            p_mat = self._sample_materials(
-                p_oid[j:j+1], p_uvs[j:j+1])
-            p_diffuse = p_mat[0][0]
-            p_specular = p_mat[1][0]
-            p_shininess = p_mat[2][0]
-
-            # Direction from hit point to projector
-            to_proj = self.proj_pos - hit_point
+            # Light direction (surface -> projector)
+            to_proj = self.proj_pos - hp
             dist_proj = np.linalg.norm(to_proj)
             dir_to_proj = to_proj / (dist_proj + 1e-12)
-            cos_in = np.dot(hit_normal, dir_to_proj)
+            cos_in = np.dot(hn, dir_to_proj)
             if cos_in < 1e-6:
                 continue
 
-            # Matching threshold
+            # View direction (surface -> camera)
+            to_cam = self.cam_pos - hp
+            dist_cam = np.linalg.norm(to_cam)
+            dir_to_cam = to_cam / (dist_cam + 1e-12)
+            cos_out = np.dot(hn, dir_to_cam)
+            if cos_out < 1e-6:
+                continue
+
+            # Shadow test: is the path surface->camera occluded?
+            shadow_o = (hp + hn * shadow_bias).reshape(1, 3)
+            shadow_d = dir_to_cam.reshape(1, 3)
+            s_hit, s_t, _, _, _, _ = self._trace_batch(shadow_o, shadow_d)
+            if s_hit[0] and s_t[0] < dist_cam - shadow_bias * 10:
+                continue
+
+            # Match: which camera pixels see this same surface point?
             threshold = dist_proj * base_footprint * 1.8
-
-            # Find camera pixels that see approximately the same point
-            # Vectorized distance computation
-            diffs = c_pts - hit_point  # (n_cam, 3)
-            dists_sq = np.sum(diffs * diffs, axis=1)
+            dists_sq = np.sum((c_pts - hp) ** 2, axis=1)
             candidates = c_hit & (dists_sq < threshold * threshold)
-
             idx = np.where(candidates)[0]
             if len(idx) == 0:
                 continue
 
-            # Vectorized BRDF evaluation for all candidate camera pixels
-            to_cam = self.cam_pos - hit_point  # (3,)
-            dist_cam = np.linalg.norm(to_cam)
-            dir_to_cam = to_cam / (dist_cam + 1e-12)
-            cos_out = np.dot(hit_normal, dir_to_cam)
+            # Evaluate GGX BRDF at this surface point
+            n_cand = len(idx)
+            brdf_val = evaluate_brdf_batch(
+                n_dot_l=np.full(n_cand, cos_in),
+                n_dot_v=np.full(n_cand, cos_out),
+                normals=np.broadcast_to(hn, (n_cand, 3)),
+                light_dirs=np.broadcast_to(dir_to_proj, (n_cand, 3)),
+                view_dirs=np.broadcast_to(dir_to_cam, (n_cand, 3)),
+                albedo=np.full(n_cand, p_albedo[j]),
+                roughness=np.full(n_cand, p_rough[j]),
+                metallic=np.full(n_cand, p_metal[j]),
+                f0=np.full(n_cand, p_f0[j]),
+            )
 
-            if cos_out < 1e-6:
-                continue
+            # Geometric attenuation: cos_in * cos_out / dist^2
+            geom = cos_in * cos_out / (dist_cam ** 2 + 1e-6)
+            T[idx, j] = brdf_val * geom
 
-            # Shadow ray: check occlusion from hit_point to camera
-            shadow_origin = hit_point + hit_normal * 2e-3
-            shadow_o = np.broadcast_to(shadow_origin, (1, 3))
-            shadow_d = np.broadcast_to(dir_to_cam, (1, 3))
-            s_hit, s_t, _, _, _, _ = self._trace_batch(shadow_o, shadow_d)
-            if s_hit[0] and s_t[0] < dist_cam - 0.02:
-                continue  # Path to camera is blocked
-
-            # Lambertian diffuse component
-            diffuse_val = p_diffuse * cos_in * cos_out / (dist_cam ** 2 + 1e-6)
-
-            # Blinn-Phong specular component
-            spec_val = 0.0
-            if p_specular > 0.01:
-                half_vec = dir_to_proj + dir_to_cam
-                half_vec /= np.linalg.norm(half_vec) + 1e-12
-                nh = max(0.0, np.dot(hit_normal, half_vec))
-                spec_val = p_specular * (nh ** p_shininess) * cos_in / (dist_cam ** 2 + 1e-6)
-
-            T[idx, j] = diffuse_val + spec_val
-
-        # Multi-bounce indirect illumination
+        # Multi-bounce via Neumann series
         if self.n_bounces > 0:
-            T = self._add_indirect_bounces(T, c_hit, c_pts, c_nrm, c_oid, c_uvs)
+            T = self._neumann_multi_bounce(T, c_hit, c_pts, c_nrm, c_oid, c_uvs)
 
-        # Normalize
+        # Normalize to [0, 1]
         t_max = T.max()
         if t_max > 0:
             T /= t_max
 
         return T
 
-    def _add_indirect_bounces(
+    def _neumann_multi_bounce(
         self, T_direct: np.ndarray,
         c_hit: np.ndarray, c_pts: np.ndarray, c_nrm: np.ndarray,
         c_oid: np.ndarray, c_uvs: np.ndarray,
     ) -> np.ndarray:
-        """Add multi-bounce indirect illumination via iterative radiosity.
+        """Multi-bounce via Neumann series with proper form factors.
 
-        Light that arrives at surface point A can reflect to surface point B
-        and then reach the camera. This function computes a form factor matrix
-        F between camera-visible surface points and iteratively accumulates
-        bounced light: T_total = T_direct + F @ T_direct + F^2 @ T_direct ...
+        Computes the inter-surface form factor matrix F between
+        camera-visible surface points, then accumulates bounced light:
+            T_total = T_direct + F @ T + F^2 @ T + ...
+
+        The spectral radius of F is checked to ensure convergence.
+        If rho(F) >= 1, the matrix is damped to ensure stability.
 
         Args:
             T_direct: Direct-only transport matrix.
             c_hit, c_pts, c_nrm, c_oid, c_uvs: Camera hit data.
 
         Returns:
-            Transport matrix with indirect bounces added.
+            Transport matrix with multi-bounce contributions.
         """
         n_cam = c_pts.shape[0]
-        valid = c_hit
-
-        # Compute inter-surface form factors (sparse: only between visible points)
-        c_diff, _, _, _ = self._sample_materials(c_oid, c_uvs)
-        F = np.zeros((n_cam, n_cam), dtype=np.float64)
-
-        # Sub-sample for performance: pick random pairs
-        valid_idx = np.where(valid)[0]
+        valid_idx = np.where(c_hit)[0]
         n_valid = len(valid_idx)
         if n_valid < 2:
             return T_direct
 
-        # Compute form factors between pairs of visible surface points
-        for i_idx in range(0, n_valid, max(1, n_valid // 200)):
-            i = valid_idx[i_idx]
-            pt_i = c_pts[i]
-            n_i = c_nrm[i]
+        albedo, _, _, _ = self._sample_materials(c_oid, c_uvs)
 
-            # Vectorized: compute form factor from point i to all other points
-            diff = c_pts[valid_idx] - pt_i
-            dist = np.linalg.norm(diff, axis=1)
-            dist = np.maximum(dist, 1e-4)
-            direction = diff / dist[:, None]
+        # Build form factor matrix F over valid surface points
+        # F[i,j] = albedo[j] * cos_i * cos_j / (pi * r^2)
+        pts = c_pts[valid_idx]   # (n_valid, 3)
+        nrm = c_nrm[valid_idx]
+        alb = albedo[valid_idx]
 
-            cos_i = direction @ n_i
-            cos_j = -np.sum(direction * c_nrm[valid_idx], axis=1)
+        F_small = np.zeros((n_valid, n_valid), dtype=np.float64)
 
-            ff = np.maximum(cos_i, 0) * np.maximum(cos_j, 0) / (np.pi * dist ** 2 + 1e-6)
-            ff *= c_diff[valid_idx]  # Scale by albedo
-            ff[dist < 1e-3] = 0  # No self-contribution
+        # Vectorized form factor computation row by row
+        for i in range(n_valid):
+            diff = pts - pts[i]                   # (n_valid, 3)
+            dist_sq = np.sum(diff * diff, axis=1)  # (n_valid,)
+            dist = np.sqrt(dist_sq + 1e-8)
+            direction = diff / (dist[:, None] + 1e-12)
 
-            F[i, valid_idx] = ff
+            cos_i = np.sum(direction * nrm[i], axis=1)    # cos at point i
+            cos_j = -np.sum(direction * nrm, axis=1)      # cos at point j
 
-        # Normalize rows
-        row_sums = F.sum(axis=1, keepdims=True)
-        row_sums = np.maximum(row_sums, 1e-10)
-        F /= row_sums
-        F *= 0.5  # Damping for stability
+            ff = np.maximum(cos_i, 0) * np.maximum(cos_j, 0) * alb / (np.pi * dist_sq + 1e-6)
+            ff[i] = 0  # No self-contribution
+            F_small[i] = ff
 
-        # Iterative bounces: T_total = T + F@T + F^2@T + ...
+        # Normalize: ensure spectral radius < 1 for convergence
+        row_sums = F_small.sum(axis=1)
+        max_row = row_sums.max()
+        if max_row > 0.95:
+            F_small *= 0.9 / max_row
+
+        # Expand F_small to full camera pixel space
+        F = np.zeros((n_cam, n_cam), dtype=np.float64)
+        F[np.ix_(valid_idx, valid_idx)] = F_small
+
+        # Neumann series: T_total = sum_{k=0}^{bounces} F^k @ T_direct
         T_total = T_direct.copy()
         T_bounce = T_direct.copy()
         for _ in range(self.n_bounces):
             T_bounce = F @ T_bounce
             T_total += T_bounce
+            # Early exit if contribution is negligible
+            if np.max(np.abs(T_bounce)) < 1e-6 * np.max(np.abs(T_total)):
+                break
 
         return T_total
 
