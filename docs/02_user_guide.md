@@ -28,7 +28,7 @@ python -m src.frontend.app
 .venv/Scripts/python.exe -m src.frontend.app
 ```
 
-Open **http://127.0.0.1:8050** in your browser.
+Open **http://127.0.0.1:8004** in your browser.
 
 ## Using the Web Interface
 
