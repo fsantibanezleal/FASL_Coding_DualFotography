@@ -631,9 +631,9 @@ def main():
     """Entry point for the Dash application."""
     print("=" * 60)
     print("  Dual Photography Lab")
-    print("  Open http://127.0.0.1:8050 in your browser")
+    print("  Open http://127.0.0.1:8004 in your browser")
     print("=" * 60)
-    app.run(debug=True, host="127.0.0.1", port=8050)
+    app.run(debug=True, host="127.0.0.1", port=8004)
 
 
 if __name__ == "__main__":
