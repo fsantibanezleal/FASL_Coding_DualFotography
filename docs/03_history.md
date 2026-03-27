@@ -46,6 +46,51 @@ The initial simulation produced boring, nearly-identical primal and dual images.
 
 ---
 
+## Key Mathematical Equations
+
+The following equations underpin every module in the codebase:
+
+### Light Transport Matrix
+
+The transport matrix **T** encodes how each projector pixel illuminates each camera pixel:
+
+```
+T[j, i] = L_j(p_i)
+```
+
+where `p_i` is the i-th projector pixel and `L_j(p_i)` is the radiance arriving at camera pixel j when only projector pixel i is active.
+
+### Forward and Dual Imaging
+
+```
+Primal (forward):   c = T * p           (camera image from projector pattern)
+Dual (transpose):   I_dual = T^T * I    (projector-viewpoint image via Helmholtz reciprocity)
+Relight:            c_new = T * p_new   (new illumination without re-capture)
+```
+
+### Helmholtz Reciprocity
+
+Light transport between two points is symmetric — swapping source and detector yields the same transfer coefficient:
+
+```
+T_forward = T_backward^T
+```
+
+This is the physical principle that makes dual photography possible: transposing **T** is equivalent to swapping the roles of projector and camera.
+
+### SVD Decomposition
+
+Singular Value Decomposition provides rank-k approximation and spectral analysis:
+
+```
+T = U * Sigma * V^T
+T_k = U_k * Sigma_k * V_k^T    (rank-k approximation, k << min(m,n))
+```
+
+The singular value spectrum reveals the effective dimensionality of the light transport and determines how many degrees of freedom the scene-illumination interaction has.
+
+---
+
 ## Changelog
 
 ### v2.0.0 (2026-03-26) — Vectorized Engine, Specular BRDF, Multi-Bounce

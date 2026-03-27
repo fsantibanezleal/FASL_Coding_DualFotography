@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 400" font-family="Segoe UI, Arial, sans-serif">
+  <defs>
+    <marker id="fwd" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#7aa2f7"/>
+    </marker>
+    <marker id="dual" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#bb9af7"/>
+    </marker>
+    <marker id="fwdRev" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#f7768e"/>
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="800" height="400" fill="#0d1117" rx="10"/>
+
+  <!-- Title -->
+  <text x="400" y="35" text-anchor="middle" font-size="20" font-weight="bold" fill="#c0caf5">
+    Helmholtz Reciprocity — Forward vs Dual Light Transport
+  </text>
+
+  <!-- Dividing line -->
+  <line x1="400" y1="55" x2="400" y2="340" stroke="#30363d" stroke-width="1" stroke-dasharray="6,4"/>
+
+  <!-- LEFT: Forward path -->
+  <text x="200" y="70" text-anchor="middle" font-size="16" font-weight="bold" fill="#7aa2f7">Forward Path</text>
+
+  <!-- Projector (left side) -->
+  <rect x="40" y="130" width="80" height="60" rx="6" fill="#1a1b26" stroke="#7aa2f7" stroke-width="2"/>
+  <text x="80" y="155" text-anchor="middle" font-size="11" font-weight="bold" fill="#7aa2f7">Projector</text>
+  <text x="80" y="170" text-anchor="middle" font-size="9" fill="#565f89">Source</text>
+  <!-- Lens icon -->
+  <circle cx="120" cy="160" r="8" fill="none" stroke="#7aa2f7" stroke-width="1.5"/>
+
+  <!-- Scene (center-left) -->
+  <rect x="175" y="120" width="50" height="80" rx="4" fill="#24283b" stroke="#51cf66" stroke-width="2"/>
+  <text x="200" y="165" text-anchor="middle" font-size="10" fill="#51cf66">Scene</text>
+
+  <!-- Camera (right of left section) -->
+  <rect x="280" y="130" width="80" height="60" rx="6" fill="#1a1b26" stroke="#f7768e" stroke-width="2"/>
+  <text x="320" y="155" text-anchor="middle" font-size="11" font-weight="bold" fill="#f7768e">Camera</text>
+  <text x="320" y="170" text-anchor="middle" font-size="9" fill="#565f89">Detector</text>
+  <!-- Lens icon -->
+  <circle cx="280" cy="160" r="8" fill="none" stroke="#f7768e" stroke-width="1.5"/>
+
+  <!-- Forward arrows -->
+  <line x1="128" y1="155" x2="172" y2="155" stroke="#7aa2f7" stroke-width="2" marker-end="url(#fwd)"/>
+  <line x1="228" y1="155" x2="270" y2="155" stroke="#7aa2f7" stroke-width="2" marker-end="url(#fwd)"/>
+
+  <!-- Forward label -->
+  <text x="200" y="105" text-anchor="middle" font-size="11" fill="#a9b1d6">c = T * p</text>
+
+  <!-- Light rays (forward) -->
+  <line x1="130" y1="140" x2="173" y2="135" stroke="#7aa2f7" stroke-width="1" opacity="0.4"/>
+  <line x1="130" y1="175" x2="173" y2="180" stroke="#7aa2f7" stroke-width="1" opacity="0.4"/>
+  <line x1="228" y1="135" x2="272" y2="140" stroke="#7aa2f7" stroke-width="1" opacity="0.4"/>
+  <line x1="228" y1="180" x2="272" y2="175" stroke="#7aa2f7" stroke-width="1" opacity="0.4"/>
+
+  <!-- RIGHT: Dual path -->
+  <text x="600" y="70" text-anchor="middle" font-size="16" font-weight="bold" fill="#bb9af7">Dual Path</text>
+
+  <!-- Virtual Camera as source -->
+  <rect x="440" y="130" width="80" height="60" rx="6" fill="#1a1b26" stroke="#bb9af7" stroke-width="2"/>
+  <text x="480" y="148" text-anchor="middle" font-size="10" font-weight="bold" fill="#bb9af7">(Virtual)</text>
+  <text x="480" y="162" text-anchor="middle" font-size="10" font-weight="bold" fill="#bb9af7">Camera</text>
+  <text x="480" y="176" text-anchor="middle" font-size="9" fill="#565f89">Source</text>
+
+  <!-- Scene (center-right) -->
+  <rect x="575" y="120" width="50" height="80" rx="4" fill="#24283b" stroke="#51cf66" stroke-width="2"/>
+  <text x="600" y="165" text-anchor="middle" font-size="10" fill="#51cf66">Scene</text>
+
+  <!-- Virtual Projector as detector -->
+  <rect x="680" y="130" width="80" height="60" rx="6" fill="#1a1b26" stroke="#f7768e" stroke-width="2"/>
+  <text x="720" y="148" text-anchor="middle" font-size="10" font-weight="bold" fill="#f7768e">(Virtual)</text>
+  <text x="720" y="162" text-anchor="middle" font-size="10" font-weight="bold" fill="#f7768e">Projector</text>
+  <text x="720" y="176" text-anchor="middle" font-size="9" fill="#565f89">Detector</text>
+
+  <!-- Dual arrows (reversed direction) -->
+  <line x1="522" y1="155" x2="572" y2="155" stroke="#bb9af7" stroke-width="2" marker-end="url(#dual)"/>
+  <line x1="628" y1="155" x2="678" y2="155" stroke="#bb9af7" stroke-width="2" marker-end="url(#dual)"/>
+
+  <!-- Dual label -->
+  <text x="600" y="105" text-anchor="middle" font-size="11" fill="#a9b1d6">p_dual = T^T * c_dual</text>
+
+  <!-- Light rays (dual) -->
+  <line x1="524" y1="140" x2="573" y2="135" stroke="#bb9af7" stroke-width="1" opacity="0.4"/>
+  <line x1="524" y1="175" x2="573" y2="180" stroke="#bb9af7" stroke-width="1" opacity="0.4"/>
+  <line x1="628" y1="135" x2="676" y2="140" stroke="#bb9af7" stroke-width="1" opacity="0.4"/>
+  <line x1="628" y1="180" x2="676" y2="175" stroke="#bb9af7" stroke-width="1" opacity="0.4"/>
+
+  <!-- Equivalence equation box -->
+  <rect x="200" y="240" width="400" height="55" rx="8" fill="#1a1b26" stroke="#e0af68" stroke-width="2"/>
+  <text x="400" y="263" text-anchor="middle" font-size="15" font-weight="bold" fill="#e0af68">
+    T_forward = T_backward^T
+  </text>
+  <text x="400" y="283" text-anchor="middle" font-size="11" fill="#a9b1d6">
+    Same light paths, reversed direction
+  </text>
+
+  <!-- Symmetry arrows connecting left and right -->
+  <path d="M 200,220 C 200,235 250,240 260,240" fill="none" stroke="#565f89" stroke-width="1.5" stroke-dasharray="4,3"/>
+  <path d="M 600,220 C 600,235 550,240 540,240" fill="none" stroke="#565f89" stroke-width="1.5" stroke-dasharray="4,3"/>
+
+  <!-- Bottom note -->
+  <text x="400" y="330" text-anchor="middle" font-size="12" fill="#565f89">
+    Helmholtz reciprocity: L(A-&gt;B) = L(B-&gt;A) for time-invariant, non-absorbing media
+  </text>
+  <text x="400" y="350" text-anchor="middle" font-size="11" fill="#565f89">
+    Physical basis: time-reversal symmetry of Maxwell's equations
+  </text>
+
+  <!-- Legend -->
+  <g transform="translate(620,310)">
+    <rect x="0" y="0" width="160" height="75" rx="5" fill="#1a1b26" stroke="#30363d" stroke-width="1"/>
+    <line x1="10" y1="18" x2="30" y2="18" stroke="#7aa2f7" stroke-width="2"/>
+    <text x="36" y="22" font-size="9" fill="#a9b1d6">Forward transport</text>
+    <line x1="10" y1="38" x2="30" y2="38" stroke="#bb9af7" stroke-width="2"/>
+    <text x="36" y="42" font-size="9" fill="#a9b1d6">Dual transport</text>
+    <rect x="10" y="52" width="16" height="10" rx="2" fill="#24283b" stroke="#51cf66" stroke-width="1"/>
+    <text x="36" y="62" font-size="9" fill="#a9b1d6">Scene geometry</text>
+  </g>
+</svg>

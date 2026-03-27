@@ -145,3 +145,113 @@ This accounts for the fact that projector pixels illuminate finite areas, not in
 ### 5.3 Performance Considerations
 
 The transport matrix computation is O(n_cam × n_proj × n_objects). For a 32×32 resolution with 8 objects, this is ~8 million ray-object tests — fast enough for interactive use. At 64×64, it takes a few seconds. The computation is CPU-bound and could be accelerated with NumPy vectorization or GPU ray-tracing.
+
+## 6. Helmholtz Reciprocity Principle
+
+Light transport is symmetric: the radiance from point A to point B equals that from B to A, provided the medium is time-invariant and non-absorbing. Formally:
+
+```
+L(A -> B) = L(B -> A)
+```
+
+This symmetry arises from the time-reversal invariance of Maxwell's equations. In the context of dual photography, it means that the forward transport matrix (projector-to-camera) is the transpose of the backward transport matrix (camera-to-projector):
+
+```
+T_forward = T_backward^T
+```
+
+This is the foundation of dual photography: measuring T in one direction gives you the complete transport in the reverse direction for free, simply by transposition. The principle holds for all materials whose BRDF satisfies f_r(omega_in, omega_out) = f_r(omega_out, omega_in), which includes Lambertian surfaces, Blinn-Phong models, and all physically plausible BRDFs based on microfacet theory.
+
+![Helmholtz Reciprocity Diagram](svg/helmholtz_reciprocity.svg)
+
+## 7. SVD Interpretation
+
+The Singular Value Decomposition of the transport matrix provides deep insight into the structure of light transport:
+
+```
+T = U * Sigma * V^T
+```
+
+Each component has a precise physical meaning:
+
+- **U columns** (left singular vectors): Camera-space basis images, also called **eigenimages**. Each column u_i, when reshaped to the camera resolution, shows a fundamental spatial pattern that the camera can observe.
+- **V columns** (right singular vectors): Projector-space basis patterns. Each column v_i, when reshaped to the projector resolution, shows a fundamental illumination pattern.
+- **Sigma** (singular values): Importance weights sigma_1 >= sigma_2 >= ... >= sigma_r > 0. The magnitude of each singular value indicates how strongly the corresponding basis pattern-image pair contributes to the overall transport.
+
+The rank-k approximation minimizes the Frobenius-norm error among all rank-k matrices:
+
+```
+T_k = sum_{i=1}^{k} sigma_i * u_i * v_i^T
+
+||T - T_k||_F = sqrt(sum_{i=k+1}^{r} sigma_i^2)
+```
+
+This is the **Eckart-Young-Mirsky theorem**. In practice, scenes with simple geometry (flat walls) have rapidly decaying singular values, while complex scenes (multiple occluders, specular surfaces) retain more significant components.
+
+![SVD Interpretation Diagram](svg/svd_interpretation.svg)
+
+## 8. Noise Robustness via Truncated SVD
+
+Real transport matrices measured from physical hardware are noisy. Each entry T[i,j] is corrupted by sensor noise, quantization error, and ambient light contamination. When computing the dual image via T^T, this noise is amplified.
+
+Truncating small singular values (sigma_i < threshold) acts as a **regularized pseudoinverse**, suppressing noise amplification in the dual image:
+
+```
+T_truncated^T = V_k * Sigma_k * U_k^T
+```
+
+The truncation threshold can be chosen by:
+1. **Energy fraction**: Keep enough singular values to capture 95% or 99% of ||T||_F^2
+2. **Hard threshold**: Discard sigma_i < epsilon * sigma_1 (e.g., epsilon = 0.01)
+3. **Gap detection**: Look for a sharp drop in the singular value spectrum
+
+Without truncation, the pseudoinverse amplifies noise by a factor of 1/sigma_i for each small singular value, leading to severe artifacts in the dual image. Truncated SVD trades a small increase in approximation error for a large reduction in noise amplification.
+
+## 9. BRDF and Light Transport
+
+The transport matrix element T[j,i] encodes the complete light path from projector pixel i to camera pixel j through the scene:
+
+```
+T[j,i] = integral_{omega} f_r(omega_i, omega_o) * L_p(omega_i) * cos(theta) * V(x_j, x_p_i) d_omega
+```
+
+where:
+- **f_r(omega_i, omega_o)** is the Bidirectional Reflectance Distribution Function at the surface point
+- **L_p(omega_i)** is the radiance from projector pixel i arriving at the surface
+- **cos(theta)** is the foreshortening factor (Lambert's cosine law)
+- **V(x_j, x_p_i)** is the binary visibility function (1 if unoccluded, 0 otherwise)
+
+For **Lambertian surfaces**, the BRDF is constant:
+
+```
+f_r = rho / pi
+```
+
+where rho is the surface albedo (diffuse reflectance). This simplifies the transport entry to:
+
+```
+T[j,i] = (rho / pi) * cos(theta_in) * cos(theta_out) * V / distance^2
+```
+
+For **specular surfaces** (Blinn-Phong model), the BRDF includes a view-dependent lobe:
+
+```
+f_r = rho_d / pi + rho_s * (n+2)/(2*pi) * cos^n(alpha)
+```
+
+where alpha is the angle between the surface normal and the half-vector, and n is the shininess exponent. Specular components create transport matrices that are far from symmetric in magnitude, making the primal and dual images dramatically different.
+
+## 10. Comparison with Light Field Photography
+
+Dual photography captures the **4D light field** L(x, y, theta, phi) implicitly via the transport matrix. The transport matrix T encodes all rays between the projector plane and the camera plane through the scene — this is equivalent to a 4D slice of the full light field.
+
+| Aspect | Dual Photography | Light Field Camera (Lytro) |
+|--------|-----------------|---------------------------|
+| **Acquisition** | Sequential pattern projection + capture | Single snapshot with microlens array |
+| **Angular resolution** | Determined by projector pixel count | Limited by microlens pitch (~10-15 angles) |
+| **Spatial resolution** | Full camera resolution (mn pixels) | Reduced by angular sampling (spatial/angular tradeoff) |
+| **Novel views** | Transpose gives projector viewpoint | Refocusing + small baseline shifts |
+| **Scene interaction** | Captures full transport including inter-reflections | Captures direct light field only |
+| **Post-capture relighting** | Full relighting via T * p_new | Not possible (fixed illumination) |
+
+Dual photography achieves higher effective resolution by exploiting projector-camera reciprocity: the projector's high pixel count directly translates to angular resolution in the dual view, whereas a light field camera must divide its sensor area between spatial and angular samples.
