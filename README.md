@@ -57,7 +57,7 @@ pip install -e ".[dev]"
 python -m src.frontend.app
 ```
 
-Open **http://127.0.0.1:8050** in your browser. Select a scene, click "Run Simulation".
+Open **http://127.0.0.1:8004** in your browser. Select a scene, click "Run Simulation".
 
 ### 3. Run Tests
 
