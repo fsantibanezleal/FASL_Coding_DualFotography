@@ -32,6 +32,14 @@ class SimulateRequest(BaseModel):
     scene_type: str = Field("cornell_box", description="Scene type identifier")
     resolution: int = Field(32, ge=4, le=128, description="Grid resolution (NxN)")
     n_bounces: int = Field(0, ge=0, le=3, description="Number of indirect light bounces")
+    compression_ratio: Optional[float] = Field(
+        None, ge=0.05, le=1.0,
+        description=(
+            "If set, use compressed sensing with M = ratio * N random patterns "
+            "instead of full canonical acquisition. Reduces acquisition time at "
+            "the cost of reconstruction accuracy (Peers et al., 2009)."
+        ),
+    )
 
 
 class RelightRequest(BaseModel):
@@ -157,7 +165,19 @@ async def simulate(req: SimulateRequest):
             proj_shape=(res, res),
             cam_shape=(res, res),
         )
-        photographer.compute_transport_from_simulation(T)
+
+        if req.compression_ratio is not None:
+            n_proj = res * res
+            n_patterns = max(1, int(req.compression_ratio * n_proj))
+            tm = TransportMatrix.from_compressed_sensing(
+                scene_transport=T,
+                n_patterns=n_patterns,
+                proj_shape=(res, res),
+                cam_shape=(res, res),
+            )
+            photographer.transport = tm
+        else:
+            photographer.compute_transport_from_simulation(T)
 
         # Store in state for subsequent relight/svd calls
         state.photographer = photographer

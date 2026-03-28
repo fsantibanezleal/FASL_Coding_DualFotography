@@ -315,6 +315,58 @@ class TransportMatrix:
             "density_per_column": nnz / self.T.shape[1],
         }
 
+    @classmethod
+    def from_compressed_sensing(
+        cls,
+        scene_transport: np.ndarray,
+        n_patterns: int,
+        proj_shape: tuple[int, int],
+        cam_shape: tuple[int, int],
+        seed: int | None = 42,
+    ) -> TransportMatrix:
+        """Compressive light transport with random patterns.
+
+        Instead of N structured patterns (one per pixel), uses M << N
+        random patterns and reconstructs T via least-squares.
+
+        This reduces acquisition time by factor N/M while preserving
+        most of the transport matrix information (Peers et al., 2009).
+
+        Args:
+            scene_transport: The true transport matrix (cam_pixels, proj_pixels),
+                used here to simulate scene responses to random patterns.
+            n_patterns: Number of random patterns M (typically 0.3*N).
+            proj_shape: Projector resolution as (height, width).
+            cam_shape: Camera resolution as (height, width).
+            seed: Random seed for reproducibility.
+
+        Returns:
+            TransportMatrix with the approximate T reconstructed from
+            compressed measurements.
+        """
+        n_cam = cam_shape[0] * cam_shape[1]
+        n_proj = proj_shape[0] * proj_shape[1]
+        M = min(n_patterns, n_proj)
+
+        rng = np.random.default_rng(seed)
+
+        # Generate random measurement patterns (M random patterns of length N)
+        patterns = rng.standard_normal((M, n_proj))
+
+        # Simulate responses: each response = T @ pattern_i
+        # responses[:, i] = T @ patterns[i]
+        responses = scene_transport @ patterns.T  # (n_cam, M)
+
+        # Reconstruct T via least-squares: responses = T_approx @ patterns.T
+        # T_approx = responses @ pinv(patterns.T)
+        T_approx = responses @ np.linalg.pinv(patterns.T)
+
+        return cls(
+            T=T_approx,
+            cam_shape=cam_shape,
+            proj_shape=proj_shape,
+        )
+
     def reciprocity_error(self) -> float:
         """Measure deviation from Helmholtz reciprocity (T vs T^T).
 
