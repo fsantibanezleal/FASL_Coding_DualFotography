@@ -23,6 +23,7 @@ from pydantic import BaseModel, Field
 
 from src.core.dual import DualPhotographer
 from src.core.transport import TransportMatrix
+from src.core.calibration import generate_gray_code_patterns, decode_gray_code, build_correspondence_map
 from src.simulation.scene import SceneType, SyntheticScene
 
 
@@ -69,6 +70,15 @@ class RelightRequest(BaseModel):
 class SvdRequest(BaseModel):
     """Request body for /api/svd."""
     rank: int = Field(10, ge=1, le=512, description="Number of singular values to retain")
+
+
+class CalibrateRequest(BaseModel):
+    """Request body for /api/calibrate."""
+    proj_width: int = Field(16, ge=2, le=256, description="Projector width in pixels")
+    proj_height: int = Field(16, ge=2, le=256, description="Projector height in pixels")
+    cam_width: int = Field(16, ge=2, le=256, description="Camera width in pixels")
+    cam_height: int = Field(16, ge=2, le=256, description="Camera height in pixels")
+    noise_level: float = Field(0.0, ge=0.0, le=1.0, description="Simulated capture noise (0-1)")
 
 
 # -- Application state --
@@ -329,4 +339,68 @@ async def frequency_analysis():
             "radial_profile": freq["radial_profile"].tolist(),
         }
     except Exception as e:
+        raise HTTPException(500, detail=str(e))
+
+
+@app.post("/api/calibrate")
+async def calibrate(req: CalibrateRequest):
+    """Simulate a projector-camera calibration using Gray code patterns.
+
+    Generates Gray code patterns for the given projector resolution,
+    simulates camera captures (with optional noise), decodes the
+    patterns, and builds a correspondence map.
+    """
+    _log(f"Calibrate: proj={req.proj_width}x{req.proj_height}, "
+         f"cam={req.cam_width}x{req.cam_height}, noise={req.noise_level}")
+
+    try:
+        # Generate patterns
+        patterns = generate_gray_code_patterns(req.proj_width, req.proj_height)
+        n_patterns = len(patterns)
+
+        # Simulate captures: for simplicity, camera sees a 1:1 mapping
+        # scaled to the camera resolution (identity correspondence)
+        captures = []
+        for p in patterns:
+            # Resize pattern from projector resolution to camera resolution
+            from numpy import ndarray
+            # Simple nearest-neighbor resize
+            y_idx = np.linspace(0, p.shape[0] - 1, req.cam_height).astype(int)
+            x_idx = np.linspace(0, p.shape[1] - 1, req.cam_width).astype(int)
+            resized = p[np.ix_(y_idx, x_idx)].astype(np.float64)
+
+            # Add noise
+            if req.noise_level > 0:
+                noise = np.random.default_rng(42).normal(
+                    0, req.noise_level * 255, resized.shape
+                )
+                resized = np.clip(resized + noise, 0, 255)
+
+            captures.append(resized)
+
+        captures_arr = np.array(captures)
+
+        # Decode
+        proj_x, proj_y = decode_gray_code(captures_arr, threshold=128.0)
+
+        # Build correspondence map
+        corr_map = build_correspondence_map(
+            proj_x, proj_y, req.proj_width, req.proj_height
+        )
+
+        # Compute coverage (fraction of projector pixels with valid correspondence)
+        valid = np.all(corr_map >= 0, axis=2)
+        coverage = float(valid.sum()) / (req.proj_width * req.proj_height)
+
+        _log(f"Calibrate complete: {n_patterns} patterns, coverage={coverage:.2%}")
+        return {
+            "n_patterns": n_patterns,
+            "proj_shape": [req.proj_height, req.proj_width],
+            "cam_shape": [req.cam_height, req.cam_width],
+            "coverage": coverage,
+            "proj_x_sample": proj_x[:4, :4].tolist(),
+            "proj_y_sample": proj_y[:4, :4].tolist(),
+        }
+    except Exception as e:
+        _log(f"Calibrate failed: {e}")
         raise HTTPException(500, detail=str(e))
