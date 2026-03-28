@@ -88,8 +88,8 @@ class TestCallbacks:
         assert len(opts_16) > len(opts_8)
 
     def test_run_simulation_produces_outputs(self):
-        """Simulation callback returns all 6 outputs with valid types."""
-        primal, dual, fig, analysis, status, store = run_simulation(
+        """Simulation callback returns all 8 outputs with valid types."""
+        primal, dual, fig, analysis, status, store, _log, _log_ui = run_simulation(
             n_clicks=1,
             scene_type="box_and_wall",
             resolution_str="8",
@@ -98,6 +98,7 @@ class TestCallbacks:
             n_bounces_str="0",
             proj_x_str="-1.5",
             cam_x_str="1.5",
+            log_data=[],
         )
         assert primal.startswith("data:image/png;base64,")
         assert dual.startswith("data:image/png;base64,")
@@ -112,11 +113,11 @@ class TestCallbacks:
         """Simulation is not triggered when n_clicks is 0."""
         from dash.exceptions import PreventUpdate
         with pytest.raises(PreventUpdate):
-            run_simulation(0, "flat_textured", "8", "0.8", "0", "0", "-1.5", "1.5")
+            run_simulation(0, "flat_textured", "8", "0.8", "0", "0", "-1.5", "1.5", [])
 
     def test_run_simulation_with_svd_rank(self):
         """Simulation works with SVD truncation enabled."""
-        primal, dual, fig, analysis, status, store = run_simulation(
+        primal, dual, fig, analysis, status, store, _log, _log_ui = run_simulation(
             n_clicks=1,
             scene_type="two_planes",
             resolution_str="8",
@@ -125,6 +126,7 @@ class TestCallbacks:
             n_bounces_str="0",
             proj_x_str="-1.5",
             cam_x_str="1.5",
+            log_data=[],
         )
         assert primal.startswith("data:image/png;base64,")
         # Check that SVD rank alert is present in analysis
@@ -133,7 +135,7 @@ class TestCallbacks:
 
     def test_run_simulation_with_inter_reflections(self):
         """Simulation works with inter-reflections enabled."""
-        primal, dual, fig, analysis, status, store = run_simulation(
+        primal, dual, fig, analysis, status, store, _log, _log_ui = run_simulation(
             n_clicks=1,
             scene_type="corner_room",
             resolution_str="8",
@@ -142,13 +144,14 @@ class TestCallbacks:
             n_bounces_str="1",
             proj_x_str="-1.5",
             cam_x_str="1.5",
+            log_data=[],
         )
         assert primal.startswith("data:image/png;base64,")
 
     def test_run_relighting_produces_images(self):
         """Relighting callback produces two valid images."""
         # First run a simulation to get store_data
-        _, _, _, _, _, store = run_simulation(
+        _, _, _, _, _, store, _, _ = run_simulation(
             n_clicks=1,
             scene_type="box_and_wall",
             resolution_str="8",
@@ -157,11 +160,13 @@ class TestCallbacks:
             n_bounces_str="0",
             proj_x_str="-1.5",
             cam_x_str="1.5",
+            log_data=[],
         )
-        pattern_img, result_img = run_relighting(
+        pattern_img, result_img, _, _ = run_relighting(
             n_clicks=1,
             pattern_name="left",
             store_data=store,
+            log_data=[],
         )
         assert pattern_img.startswith("data:image/png;base64,")
         assert result_img.startswith("data:image/png;base64,")
@@ -170,7 +175,7 @@ class TestCallbacks:
         """Relighting fails gracefully when no simulation has been run."""
         from dash.exceptions import PreventUpdate
         with pytest.raises(PreventUpdate):
-            run_relighting(n_clicks=1, pattern_name="white", store_data=None)
+            run_relighting(n_clicks=1, pattern_name="white", store_data=None, log_data=[])
 
     @pytest.mark.parametrize("scene", [
         "box_and_wall", "cornell_box", "gallery", "staircase", "mirror_room",
@@ -178,7 +183,7 @@ class TestCallbacks:
     ])
     def test_all_scene_types_work(self, scene):
         """Every scene type can be simulated without errors."""
-        primal, dual, fig, analysis, status, store = run_simulation(
+        primal, dual, fig, analysis, status, store, _log, _log_ui = run_simulation(
             n_clicks=1,
             scene_type=scene,
             resolution_str="8",
@@ -187,6 +192,7 @@ class TestCallbacks:
             n_bounces_str="0",
             proj_x_str="-1.5",
             cam_x_str="1.5",
+            log_data=[],
         )
         assert primal.startswith("data:image/png;base64,")
         assert store is not None
