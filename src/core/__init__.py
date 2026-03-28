@@ -1,4 +1,4 @@
-"""Core engine for dual photography: transport matrix, SVD, BRDF, calibration, and dual image computation."""
+"""Core engine for dual photography: transport matrix, SVD, BRDF, calibration, spectral, and dual image computation."""
 
 from src.core.transport import TransportMatrix
 from src.core.dual import DualPhotographer
@@ -8,6 +8,7 @@ from src.core.calibration import (
     decode_gray_code,
     build_correspondence_map,
 )
+from src.core.spectral import SpectralTransportMatrix, simulate_rgb_transport
 
 __all__ = [
     "TransportMatrix",
@@ -17,4 +18,6 @@ __all__ = [
     "generate_gray_code_patterns",
     "decode_gray_code",
     "build_correspondence_map",
+    "SpectralTransportMatrix",
+    "simulate_rgb_transport",
 ]

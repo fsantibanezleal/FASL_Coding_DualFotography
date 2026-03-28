@@ -24,6 +24,7 @@ from pydantic import BaseModel, Field
 from src.core.dual import DualPhotographer
 from src.core.transport import TransportMatrix
 from src.core.calibration import generate_gray_code_patterns, decode_gray_code, build_correspondence_map
+from src.core.spectral import SpectralTransportMatrix, simulate_rgb_transport
 from src.simulation.scene import SceneType, SyntheticScene
 
 
@@ -81,6 +82,21 @@ class CalibrateRequest(BaseModel):
     noise_level: float = Field(0.0, ge=0.0, le=1.0, description="Simulated capture noise (0-1)")
 
 
+class SpectralSimulateRequest(BaseModel):
+    """Request body for /api/spectral-simulate."""
+    resolution: int = Field(8, ge=4, le=64, description="Grid resolution (NxN)")
+    seed: int = Field(42, description="Random seed for reproducibility")
+
+
+class SpectralRelightRequest(BaseModel):
+    """Request body for /api/spectral-relight."""
+    channel: str = Field("red", description="Wavelength channel: red, green, blue")
+    pattern_type: str = Field(
+        "uniform",
+        description="Virtual illumination pattern: uniform, spot, horizontal_gradient",
+    )
+
+
 # -- Application state --
 
 class AppState:
@@ -90,6 +106,7 @@ class AppState:
         self.photographer: Optional[DualPhotographer] = None
         self.scene: Optional[SyntheticScene] = None
         self.resolution: int = 32
+        self.spectral: Optional[SpectralTransportMatrix] = None
 
 
 state = AppState()
@@ -339,6 +356,71 @@ async def frequency_analysis():
             "radial_profile": freq["radial_profile"].tolist(),
         }
     except Exception as e:
+        raise HTTPException(500, detail=str(e))
+
+
+@app.post("/api/spectral-simulate")
+async def spectral_simulate(req: SpectralSimulateRequest):
+    """Simulate spectral (RGB) transport matrices.
+
+    Creates wavelength-dependent transport matrices that capture how
+    different wavelengths of light propagate through the scene.
+    """
+    _log(f"Spectral simulate: res={req.resolution}, seed={req.seed}")
+    try:
+        spectral = simulate_rgb_transport(resolution=req.resolution, seed=req.seed)
+        state.spectral = spectral
+
+        # Generate a sample forward image per channel with uniform illumination
+        n = req.resolution * req.resolution
+        uniform = np.ones(n)
+        sample_images = {}
+        for name, T in spectral.channels.items():
+            img = T @ uniform
+            sample_images[name] = np.clip(img, 0, None).tolist()
+
+        _log(f"Spectral simulate complete: {len(spectral.channels)} channels")
+        return {
+            **spectral.get_state(),
+            "sample_images": sample_images,
+        }
+    except Exception as e:
+        _log(f"Spectral simulate failed: {e}")
+        raise HTTPException(500, detail=str(e))
+
+
+@app.post("/api/spectral-relight")
+async def spectral_relight(req: SpectralRelightRequest):
+    """Compute a spectral dual image (view from projector) for one channel.
+
+    Requires a prior call to /api/spectral-simulate.
+    """
+    if state.spectral is None:
+        _log("Spectral relight failed: no spectral simulation loaded")
+        raise HTTPException(400, detail="No spectral simulation. Call /api/spectral-simulate first.")
+
+    _log(f"Spectral relight: channel={req.channel}, pattern={req.pattern_type}")
+    try:
+        res = state.spectral.resolution
+        n = res * res
+        shape = (res, res)
+        pattern = _generate_pattern(req.pattern_type, shape).flatten()
+
+        dual_img = state.spectral.dual_image_spectral(req.channel, pattern)
+        dual_img = np.clip(dual_img, 0, None)
+
+        _log(f"Spectral relight complete: channel={req.channel}")
+        return {
+            "channel": req.channel,
+            "pattern_type": req.pattern_type,
+            "dual_image": dual_img.tolist(),
+            "resolution": res,
+        }
+    except ValueError as e:
+        _log(f"Spectral relight error: {e}")
+        raise HTTPException(400, detail=str(e))
+    except Exception as e:
+        _log(f"Spectral relight failed: {e}")
         raise HTTPException(500, detail=str(e))
 
 
