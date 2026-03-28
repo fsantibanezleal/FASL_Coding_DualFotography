@@ -193,3 +193,62 @@ class TestDualPhotographer:
         photographer = DualPhotographer(proj_shape=(4, 4), cam_shape=(4, 4))
         with pytest.raises(RuntimeError, match="Transport matrix not computed"):
             photographer.dual_image()
+
+
+class TestCompressedSensing:
+    """Tests for compressive light transport acquisition."""
+
+    def test_compressed_reconstruction_shape(self):
+        """Compressed sensing produces correct matrix shape."""
+        rng = np.random.default_rng(42)
+        T_true = rng.random((16, 16))
+        tm = TransportMatrix.from_compressed_sensing(
+            scene_transport=T_true,
+            n_patterns=16,  # full measurement
+            proj_shape=(4, 4),
+            cam_shape=(4, 4),
+        )
+        assert tm.T.shape == (16, 16)
+
+    def test_full_measurement_recovers_T(self):
+        """With M=N patterns, compressed sensing should recover T exactly."""
+        rng = np.random.default_rng(42)
+        T_true = rng.random((16, 16))
+        tm = TransportMatrix.from_compressed_sensing(
+            scene_transport=T_true,
+            n_patterns=16,
+            proj_shape=(4, 4),
+            cam_shape=(4, 4),
+        )
+        np.testing.assert_allclose(tm.T, T_true, atol=1e-8)
+
+    def test_compressed_forward(self):
+        """Forward pass with compressed T produces valid output."""
+        rng = np.random.default_rng(42)
+        T_true = rng.random((16, 16))
+        tm = TransportMatrix.from_compressed_sensing(
+            scene_transport=T_true,
+            n_patterns=8,  # 50% compression
+            proj_shape=(4, 4),
+            cam_shape=(4, 4),
+        )
+        pattern = np.ones((4, 4))
+        result = tm.forward(pattern)
+        assert result.shape == (4, 4)
+
+    def test_compression_ratio_tradeoff(self):
+        """More patterns should give a better approximation."""
+        rng = np.random.default_rng(42)
+        T_true = rng.random((16, 16))
+        tm_low = TransportMatrix.from_compressed_sensing(
+            scene_transport=T_true, n_patterns=4,
+            proj_shape=(4, 4), cam_shape=(4, 4), seed=42,
+        )
+        tm_high = TransportMatrix.from_compressed_sensing(
+            scene_transport=T_true, n_patterns=12,
+            proj_shape=(4, 4), cam_shape=(4, 4), seed=42,
+        )
+        err_low = np.linalg.norm(tm_low.T - T_true)
+        err_high = np.linalg.norm(tm_high.T - T_true)
+        assert err_high <= err_low, \
+            f"More patterns should reduce error: {err_high:.4f} > {err_low:.4f}"
