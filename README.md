@@ -48,6 +48,10 @@ This produces the scene as seen **from the projector's position** — without an
 
 <video src="docs/videos/Sim_Working.mp4" controls width="100%"></video>
 
+### Video Demo
+
+[![Dual Photography Lab — YouTube Demo](https://img.youtube.com/vi/Ju5GQuowxaE/0.jpg)](https://youtu.be/Ju5GQuowxaE)
+
 ## Quick Start
 
 ### 1. Install Dependencies
