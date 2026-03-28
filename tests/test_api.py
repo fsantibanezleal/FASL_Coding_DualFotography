@@ -117,6 +117,47 @@ async def test_svd_analysis(client):
 
 
 @pytest.mark.asyncio
+async def test_transport_svd_mode(client):
+    """GET /api/transport?mode=svd should return truncated SVD factors."""
+    await client.post(
+        "/api/simulate",
+        json={"scene_type": "flat_textured", "resolution": 8, "n_bounces": 0},
+    )
+    response = await client.get("/api/transport", params={"mode": "svd", "rank": 5})
+    assert response.status_code == 200
+    data = response.json()
+    assert data["mode"] == "svd"
+    assert data["rank"] == 5
+    assert len(data["S"]) == 5
+    assert len(data["U"]) > 0
+    assert len(data["Vt"]) == 5
+    assert data["shape"] == [64, 64]
+
+
+@pytest.mark.asyncio
+async def test_transport_full_mode(client):
+    """GET /api/transport?mode=full should return the full matrix."""
+    await client.post(
+        "/api/simulate",
+        json={"scene_type": "flat_textured", "resolution": 8, "n_bounces": 0},
+    )
+    response = await client.get("/api/transport", params={"mode": "full"})
+    assert response.status_code == 200
+    data = response.json()
+    assert data["mode"] == "full"
+    assert data["shape"] == [64, 64]
+    assert len(data["matrix"]) == 64
+
+
+@pytest.mark.asyncio
+async def test_transport_without_simulate(client):
+    """GET /api/transport before simulate should return 400."""
+    state.photographer = None
+    response = await client.get("/api/transport")
+    assert response.status_code == 400
+
+
+@pytest.mark.asyncio
 async def test_relight_all_patterns(client):
     """All built-in pattern types should produce valid relighting results."""
     await client.post(

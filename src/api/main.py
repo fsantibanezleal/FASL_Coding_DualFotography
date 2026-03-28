@@ -221,6 +221,41 @@ async def svd_analysis(rank: int = 10):
         raise HTTPException(500, detail=str(e))
 
 
+@app.get("/api/transport")
+async def get_transport(mode: str = "svd", rank: int = 10):
+    """Get transport matrix in compact or full form.
+
+    Args:
+        mode: 'svd' returns truncated factors (U, S, Vt). 'full' returns dense matrix.
+        rank: Number of singular values for SVD mode.
+    """
+    if state.photographer is None:
+        raise HTTPException(400, detail="No simulation loaded. Call /api/simulate first.")
+
+    try:
+        T = state.photographer.transport.T
+
+        if mode == 'svd':
+            U, s, Vt = np.linalg.svd(T, full_matrices=False)
+            k = min(rank, len(s))
+            return {
+                "mode": "svd",
+                "rank": k,
+                "U": U[:, :k].tolist(),
+                "S": s[:k].tolist(),
+                "Vt": Vt[:k, :].tolist(),
+                "shape": list(T.shape),
+            }
+        else:
+            return {
+                "mode": "full",
+                "matrix": T.tolist(),
+                "shape": list(T.shape),
+            }
+    except Exception as e:
+        raise HTTPException(500, detail=str(e))
+
+
 @app.get("/api/frequency")
 async def frequency_analysis():
     """Get 2D Fourier frequency analysis of the transport matrix."""
