@@ -13,7 +13,8 @@ to web frontends and external tools without requiring direct Python imports.
 
 from __future__ import annotations
 
-from typing import Optional
+from datetime import datetime
+from typing import Optional, List
 
 import numpy as np
 from fastapi import FastAPI, HTTPException
@@ -23,6 +24,21 @@ from pydantic import BaseModel, Field
 from src.core.dual import DualPhotographer
 from src.core.transport import TransportMatrix
 from src.simulation.scene import SceneType, SyntheticScene
+
+
+# -- Activity log --
+
+_activity_log: List[str] = []
+_MAX_LOG_ENTRIES = 200
+
+
+def _log(message: str) -> None:
+    """Append a timestamped message to the activity log."""
+    timestamp = datetime.now().strftime("%H:%M:%S")
+    _activity_log.append(f"[{timestamp}] {message}")
+    # Keep bounded
+    if len(_activity_log) > _MAX_LOG_ENTRIES:
+        del _activity_log[: len(_activity_log) - _MAX_LOG_ENTRIES]
 
 
 # -- Pydantic request/response models --
@@ -130,7 +146,19 @@ def _generate_pattern(pattern_type: str, shape: tuple[int, int]) -> np.ndarray:
 @app.get("/api/health")
 async def health():
     """Health check endpoint."""
+    _log("Health check")
     return {"status": "ok", "version": "2.0.0"}
+
+
+@app.get("/api/log")
+async def get_log(limit: int = 50):
+    """Return the last *limit* activity log entries (most recent last).
+
+    Args:
+        limit: Maximum number of entries to return (default 50).
+    """
+    entries = _activity_log[-limit:]
+    return {"entries": entries, "total": len(_activity_log)}
 
 
 @app.get("/api/scenes")
@@ -146,13 +174,17 @@ async def simulate(req: SimulateRequest):
     Builds a synthetic scene, computes the light transport matrix T,
     and generates both camera and dual images.
     """
+    _log(f"Simulate: scene={req.scene_type}, res={req.resolution}, bounces={req.n_bounces}")
+
     try:
         scene_type = _scene_type_from_str(req.scene_type)
     except ValueError as e:
+        _log(f"Simulate error: {e}")
         raise HTTPException(400, detail=str(e))
 
     try:
         res = req.resolution
+        _log("Building scene and computing transport matrix...")
         scene = SyntheticScene(
             scene_type=scene_type,
             proj_shape=(res, res),
@@ -188,6 +220,7 @@ async def simulate(req: SimulateRequest):
         camera_image = photographer.transport.forward(np.ones((res, res)))
         dual_image = photographer.dual_image()
 
+        _log(f"Simulate complete: T={T.shape}, norm={np.linalg.norm(T):.2f}")
         return {
             "scene_type": scene_type.value,
             "resolution": res,
@@ -198,6 +231,7 @@ async def simulate(req: SimulateRequest):
             "transport_sparsity": photographer.transport.sparsity(),
         }
     except Exception as e:
+        _log(f"Simulate failed: {e}")
         raise HTTPException(500, detail=str(e))
 
 
@@ -205,19 +239,24 @@ async def simulate(req: SimulateRequest):
 async def relight(req: RelightRequest):
     """Apply virtual relighting with a new projector pattern."""
     if state.photographer is None:
+        _log("Relight failed: no simulation loaded")
         raise HTTPException(400, detail="No simulation loaded. Call /api/simulate first.")
 
+    _log(f"Relight: pattern={req.pattern_type}")
     try:
         pattern = _generate_pattern(req.pattern_type, state.photographer.proj_shape)
         relighted = state.photographer.relight(pattern)
+        _log(f"Relight complete: pattern={req.pattern_type}")
         return {
             "pattern_type": req.pattern_type,
             "relighted_image": relighted.tolist(),
             "pattern": pattern.tolist(),
         }
     except ValueError as e:
+        _log(f"Relight error: {e}")
         raise HTTPException(400, detail=str(e))
     except Exception as e:
+        _log(f"Relight failed: {e}")
         raise HTTPException(500, detail=str(e))
 
 

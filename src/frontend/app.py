@@ -15,6 +15,7 @@ from __future__ import annotations
 import io
 import base64
 import traceback
+from datetime import datetime
 
 import dash
 import dash_bootstrap_components as dbc
@@ -38,6 +39,22 @@ app = dash.Dash(
     suppress_callback_exceptions=True,
 )
 server = app.server  # Expose for WSGI deployment
+
+
+def _log_entry(message: str) -> str:
+    """Create a timestamped log entry string."""
+    return f"[{datetime.now().strftime('%H:%M:%S')}] {message}"
+
+
+def _render_log(entries: list) -> list:
+    """Render log entries as html.P children for the activity-log div."""
+    if not entries:
+        return [html.P("Ready.", className="text-muted small mb-0")]
+    return [
+        html.P(entry, className="small mb-0", style={"color": "#adb5bd"})
+        for entry in entries
+    ]
+
 
 # ---------------------------------------------------------------------------
 # Layout constants
@@ -422,8 +439,30 @@ app.layout = dbc.Container([
         dbc.Col(_control_panel(), md=3),
         dbc.Col(_results_panel(), md=9),
     ]),
+    # Activity log panel
+    dbc.Row([
+        dbc.Col([
+            dbc.Card(dbc.CardBody([
+                html.H5("Activity Log", className="text-center mb-2"),
+                html.Div(
+                    id="activity-log",
+                    children=[html.P("Ready.", className="text-muted small mb-0")],
+                    style={
+                        "maxHeight": "160px",
+                        "overflowY": "auto",
+                        "fontFamily": "monospace",
+                        "fontSize": "0.8rem",
+                        "backgroundColor": "rgba(0,0,0,0.3)",
+                        "padding": "8px",
+                        "borderRadius": "4px",
+                    },
+                ),
+            ])),
+        ], width=12),
+    ], className="mb-3"),
     # Hidden stores
     dcc.Store(id="transport-store", data=None),
+    dcc.Store(id="log-store", data=[]),
 ], fluid=True, className="py-3")
 
 
@@ -459,6 +498,8 @@ def update_svd_options(resolution_str: str):
     Output("analysis-info", "children"),
     Output("status-msg", "children"),
     Output("transport-store", "data"),
+    Output("log-store", "data", allow_duplicate=True),
+    Output("activity-log", "children", allow_duplicate=True),
     Input("run-btn", "n_clicks"),
     State("scene-type", "value"),
     State("resolution", "value"),
@@ -467,11 +508,12 @@ def update_svd_options(resolution_str: str):
     State("n-bounces", "value"),
     State("proj-x", "value"),
     State("cam-x", "value"),
+    State("log-store", "data"),
     prevent_initial_call=True,
 )
 def run_simulation(
     n_clicks, scene_type, resolution_str, albedo_str, svd_rank_str,
-    n_bounces_str, proj_x_str, cam_x_str,
+    n_bounces_str, proj_x_str, cam_x_str, log_data,
 ):
     """Execute a dual photography simulation and update all visualizations.
 
@@ -485,6 +527,10 @@ def run_simulation(
     if not n_clicks:
         raise PreventUpdate
 
+    log_entries = list(log_data or [])
+    # Clear and show processing
+    log_entries.append(_log_entry("Processing..."))
+
     try:
         resolution = int(resolution_str)
         albedo = float(albedo_str)
@@ -492,6 +538,11 @@ def run_simulation(
         proj_x = float(proj_x_str)
         cam_x = float(cam_x_str)
         n_bounces = int(n_bounces_str)
+
+        log_entries.append(_log_entry(
+            f"Simulation started: scene={scene_type}, res={resolution}, "
+            f"albedo={albedo}, bounces={n_bounces}"
+        ))
 
         scene = SceneType(scene_type)
         proj_shape = (resolution, resolution)
@@ -587,9 +638,19 @@ def run_simulation(
             "cam_shape": list(cam_shape),
         }
 
-        return primal_src, dual_src, fig, analysis_children, status, store_data
+        log_entries.append(_log_entry(
+            f"Transport matrix computed: {result.transport.T.shape[0]}x"
+            f"{result.transport.T.shape[1]}, cond={cond_str}"
+        ))
+        log_entries.append(_log_entry("Simulation complete"))
+
+        return (
+            primal_src, dual_src, fig, analysis_children, status, store_data,
+            log_entries, _render_log(log_entries),
+        )
 
     except Exception as e:
+        log_entries.append(_log_entry(f"Error: {e}"))
         error_msg = dbc.Alert(f"Error: {e}", color="danger", className="py-1 mb-0")
         raise PreventUpdate from e
 
@@ -597,12 +658,15 @@ def run_simulation(
 @app.callback(
     Output("relight-pattern-img", "src"),
     Output("relight-result-img", "src"),
+    Output("log-store", "data", allow_duplicate=True),
+    Output("activity-log", "children", allow_duplicate=True),
     Input("relight-btn", "n_clicks"),
     State("relight-pattern", "value"),
     State("transport-store", "data"),
+    State("log-store", "data"),
     prevent_initial_call=True,
 )
-def run_relighting(n_clicks, pattern_name, store_data):
+def run_relighting(n_clicks, pattern_name, store_data, log_data):
     """Relight the scene with a selected illumination pattern.
 
     Uses the stored transport matrix from the last simulation to compute
@@ -610,6 +674,9 @@ def run_relighting(n_clicks, pattern_name, store_data):
     """
     if not n_clicks or store_data is None:
         raise PreventUpdate
+
+    log_entries = list(log_data or [])
+    log_entries.append(_log_entry(f"Relighting: pattern={pattern_name}"))
 
     T = np.array(store_data["T"])
     proj_shape = tuple(store_data["proj_shape"])
@@ -621,7 +688,12 @@ def run_relighting(n_clicks, pattern_name, store_data):
     tm = TransportMatrix(T=T, cam_shape=cam_shape, proj_shape=proj_shape)
     relighted = tm.forward(pattern)
 
-    return _numpy_to_b64_img(pattern), _numpy_to_b64_img(relighted)
+    log_entries.append(_log_entry(f"Relighting complete: {pattern_name}"))
+
+    return (
+        _numpy_to_b64_img(pattern), _numpy_to_b64_img(relighted),
+        log_entries, _render_log(log_entries),
+    )
 
 
 # ---------------------------------------------------------------------------

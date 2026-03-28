@@ -42,6 +42,16 @@ This produces the scene as seen **from the projector's position** — without an
 - **Physical Capture** (optional): Acquire transport matrices using a webcam and screen-as-projector with ambient subtraction
 - **Multiple Pattern Types**: Canonical, Hadamard, Bernoulli (compressed sensing), Gray code
 
+## Frontend
+
+![Frontend](docs/png/frontend.png)
+
+<video src="docs/videos/Sim_Working.mp4" controls width="100%"></video>
+
+### Video Demo
+
+[![Dual Photography Lab — YouTube Demo](https://img.youtube.com/vi/Ju5GQuowxaE/0.jpg)](https://youtu.be/Ju5GQuowxaE)
+
 ## Quick Start
 
 ### 1. Install Dependencies
