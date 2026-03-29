@@ -55,12 +55,41 @@ This produces the scene as seen **from the projector's position** — without an
 
 #### Key Equations
 
+##### Primal Imaging — Camera Observes Projector Illumination
+The camera image is a linear transformation of the projector pattern through the scene's light transport:
+
 ```
-Primal:     c = T · p           (camera sees what projector illuminates)
-Dual:       p' = T^T · c'       (projector "sees" what camera illuminates)
-SVD:        T ≈ U_k · Σ_k · V_k^T   (rank-k approximation)
-Relight:    c_new = T · p_new   (new illumination, no re-capture)
+c = T · p
 ```
+
+where **T** is the light transport matrix (size m x n, with m camera pixels and n projector pixels), **p** is the projected pattern, and **c** is the captured camera image. Each entry T_ij encodes how much light from projector pixel j reaches camera pixel i.
+
+##### Dual Imaging — Seeing Through the Projector's Eyes
+By Helmholtz reciprocity, transposing T swaps the roles of projector and camera:
+
+```
+p' = T^T · c'
+```
+
+where **T^T** is the transposed transport matrix and **c'** is a virtual illumination pattern applied from the camera's side. This produces the scene as seen from the projector's viewpoint — no additional hardware needed.
+
+##### SVD Compression — Rank-k Approximation
+The transport matrix is compressed via truncated singular value decomposition to reduce noise and storage:
+
+```
+T ≈ U_k · Σ_k · V_k^T
+```
+
+where **U_k** contains the k dominant camera-space modes, **Σ_k** holds the k largest singular values, and **V_k^T** holds the projector-space modes. Typical scenes have effective rank 10-50, meaning >99% of the energy is captured by far fewer modes than full resolution.
+
+##### Virtual Relighting — New Illumination Without Re-Capture
+Once T is known, any new illumination pattern can be applied computationally:
+
+```
+c_new = T · p_new
+```
+
+where **p_new** is an arbitrary virtual projector pattern. This enables real-time relighting of the captured scene without additional physical measurements.
 
 ---
 
