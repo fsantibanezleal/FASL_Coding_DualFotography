@@ -14,14 +14,24 @@ Dual photography exploits Helmholtz reciprocity: the light transport matrix T be
 
 ---
 
-## KPIs & Metrics
+## KPIs — Impact & Value
 
-| Metric | Target | Current |
-|--------|--------|---------|
-| SVD reconstruction | Rank-k approximation | Configurable rank, auto-truncation |
-| Spectral transport | Per-wavelength analysis | RGB (3-channel) transport matrices |
-| Calibration | Projector-camera mapping | Gray code pattern decode |
-| Test coverage | Comprehensive | 165 tests passing |
+| KPI | Impact |
+|-----|--------|
+| Novel imaging capability | See through the projector's eyes without moving the camera |
+| Virtual relighting | Change illumination without re-capturing the scene |
+| Spectral analysis | Multi-wavelength material characterization from single setup |
+| Platform migration | MATLAB prototype → Python web app (no license required) |
+
+## Project Metrics & Status
+
+| Metric | Status |
+|--------|--------|
+| Tests | 165 passing |
+| SVD reconstruction | Configurable rank-k with auto-truncation |
+| Spectral channels | RGB (3-channel) transport matrices |
+| Calibration | Gray code pattern generation + decoding |
+| API endpoints | 11 REST endpoints |
 
 ---
 
