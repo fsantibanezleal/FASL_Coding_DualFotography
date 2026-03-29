@@ -23,86 +23,6 @@ Dual photography exploits Helmholtz reciprocity: the light transport matrix T be
 | Spectral analysis | Multi-wavelength material characterization from single setup |
 | Platform migration | MATLAB prototype → Python web app (no license required) |
 
-## Project Metrics & Status
-
-| Metric | Status |
-|--------|--------|
-| Tests | 165 passing |
-| SVD reconstruction | Configurable rank-k with auto-truncation |
-| Spectral channels | RGB (3-channel) transport matrices |
-| Calibration | Gray code pattern generation + decoding |
-| API endpoints | 11 REST endpoints |
-
----
-
-## Concept
-
-![Dual Photography Concept](docs/svg/concept_dual_photography.svg)
-
-When a projector illuminates a scene and a camera captures the result, the relationship is linear:
-
-```
-camera_image = T · projector_pattern
-```
-
-where **T** is the *light transport matrix*. By **Helmholtz reciprocity**, transposing T swaps the roles of projector and camera:
-
-```
-dual_image = T^T · virtual_illumination
-```
-
-This produces the scene as seen **from the projector's position** — without any additional hardware.
-
-### Mathematical Background
-
-#### Transport Matrix Acquisition
-
-| Method | Patterns Needed | Quality | Speed |
-|--------|----------------|---------|-------|
-| Canonical (one-at-a-time) | N = p·q | Exact | Slow |
-| Hadamard (multiplexed) | N = p·q | Optimal SNR | Medium |
-| Bernoulli (compressed sensing) | N << p·q | Good | Fast |
-
-#### Key Equations
-
-##### Primal Imaging — Camera Observes Projector Illumination
-The camera image is a linear transformation of the projector pattern through the scene's light transport:
-
-```
-c = T · p
-```
-
-where **T** is the light transport matrix (size m x n, with m camera pixels and n projector pixels), **p** is the projected pattern, and **c** is the captured camera image. Each entry T_ij encodes how much light from projector pixel j reaches camera pixel i.
-
-##### Dual Imaging — Seeing Through the Projector's Eyes
-By Helmholtz reciprocity, transposing T swaps the roles of projector and camera:
-
-```
-p' = T^T · c'
-```
-
-where **T^T** is the transposed transport matrix and **c'** is a virtual illumination pattern applied from the camera's side. This produces the scene as seen from the projector's viewpoint — no additional hardware needed.
-
-##### SVD Compression — Rank-k Approximation
-The transport matrix is compressed via truncated singular value decomposition to reduce noise and storage:
-
-```
-T ≈ U_k · Σ_k · V_k^T
-```
-
-where **U_k** contains the k dominant camera-space modes, **Σ_k** holds the k largest singular values, and **V_k^T** holds the projector-space modes. Typical scenes have effective rank 10-50, meaning >99% of the energy is captured by far fewer modes than full resolution.
-
-##### Virtual Relighting — New Illumination Without Re-Capture
-Once T is known, any new illumination pattern can be applied computationally:
-
-```
-c_new = T · p_new
-```
-
-where **p_new** is an arbitrary virtual projector pattern. This enables real-time relighting of the captured scene without additional physical measurements.
-
----
-
 ## Demo
 
 ![Dual Photography Lab — Demo with results](docs/img/app_demo_readme.png)
@@ -123,6 +43,72 @@ where **p_new** is an arbitrary virtual projector pattern. This enables real-tim
 
 ---
 
+## Technical Approach — Light Transport Mathematics
+
+![Dual Photography Concept](docs/svg/concept_dual_photography.svg)
+
+When a projector illuminates a scene and a camera captures the result, the relationship is linear:
+
+```
+camera_image = T · projector_pattern
+```
+
+where **T** is the *light transport matrix*. By **Helmholtz reciprocity**, transposing T swaps the roles of projector and camera:
+
+```
+dual_image = T^T · virtual_illumination
+```
+
+This produces the scene as seen **from the projector's position** — without any additional hardware.
+
+### Transport Matrix Acquisition
+
+| Method | Patterns Needed | Quality | Speed |
+|--------|----------------|---------|-------|
+| Canonical (one-at-a-time) | N = p·q | Exact | Slow |
+| Hadamard (multiplexed) | N = p·q | Optimal SNR | Medium |
+| Bernoulli (compressed sensing) | N << p·q | Good | Fast |
+
+### Key Equations
+
+#### Primal Imaging — Camera Observes Projector Illumination
+The camera image is a linear transformation of the projector pattern through the scene's light transport:
+
+```
+c = T · p
+```
+
+where **T** is the light transport matrix (size m x n, with m camera pixels and n projector pixels), **p** is the projected pattern, and **c** is the captured camera image. Each entry T_ij encodes how much light from projector pixel j reaches camera pixel i.
+
+#### Dual Imaging — Seeing Through the Projector's Eyes
+By Helmholtz reciprocity, transposing T swaps the roles of projector and camera:
+
+```
+p' = T^T · c'
+```
+
+where **T^T** is the transposed transport matrix and **c'** is a virtual illumination pattern applied from the camera's side. This produces the scene as seen from the projector's viewpoint — no additional hardware needed.
+
+#### SVD Compression — Rank-k Approximation
+The transport matrix is compressed via truncated singular value decomposition to reduce noise and storage:
+
+```
+T ≈ U_k · Σ_k · V_k^T
+```
+
+where **U_k** contains the k dominant camera-space modes, **Σ_k** holds the k largest singular values, and **V_k^T** holds the projector-space modes. Typical scenes have effective rank 10-50, meaning >99% of the energy is captured by far fewer modes than full resolution.
+
+#### Virtual Relighting — New Illumination Without Re-Capture
+Once T is known, any new illumination pattern can be applied computationally:
+
+```
+c_new = T · p_new
+```
+
+where **p_new** is an arbitrary virtual projector pattern. This enables real-time relighting of the captured scene without additional physical measurements.
+
+---
+
 ## Architecture
 
 ![System Architecture](docs/svg/architecture.svg)
@@ -138,6 +124,16 @@ where **p_new** is an arbitrary virtual projector pattern. This enables real-tim
 - **Interactive Relighting**: Apply 10 different illumination patterns (left/right half, spot, stripes, random) and see the relighted scene instantly
 - **Physical Capture** (optional): Acquire transport matrices using a webcam and screen-as-projector with ambient subtraction
 - **Multiple Pattern Types**: Canonical, Hadamard, Bernoulli (compressed sensing), Gray code
+
+## Project Metrics & Status
+
+| Metric | Status |
+|--------|--------|
+| Tests | 165 passing |
+| SVD reconstruction | Configurable rank-k with auto-truncation |
+| Spectral channels | RGB (3-channel) transport matrices |
+| Calibration | Gray code pattern generation + decoding |
+| API endpoints | 11 REST endpoints |
 
 ---
 
