@@ -10,6 +10,19 @@ Based on the work by Sen et al. (SIGGRAPH 2005).
 
 Dual photography exploits Helmholtz reciprocity: the light transport matrix T between projector and camera, transposed as T^T, lets us see through the projector's eyes. This enables virtual relighting and novel viewpoints from a single capture.
 
+![Helmholtz Reciprocity](docs/svg/helmholtz_reciprocity.svg)
+
+---
+
+## KPIs & Metrics
+
+| Metric | Target | Current |
+|--------|--------|---------|
+| SVD reconstruction | Rank-k approximation | Configurable rank, auto-truncation |
+| Spectral transport | Per-wavelength analysis | RGB (3-channel) transport matrices |
+| Calibration | Projector-camera mapping | Gray code pattern decode |
+| Test coverage | Comprehensive | 165 tests passing |
+
 ---
 
 ## Concept
