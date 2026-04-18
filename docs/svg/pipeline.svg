@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 560" font-family="Segoe UI, Arial, sans-serif">
+  <defs>
+    <marker id="arrBlue" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#7aa2f7"/>
+    </marker>
+    <marker id="arrPurple" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#bb9af7"/>
+    </marker>
+    <marker id="arrGreen" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#9ece6a"/>
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="900" height="560" fill="#0d1117" rx="12"/>
+
+  <!-- Title -->
+  <text x="450" y="34" text-anchor="middle" font-size="22" font-weight="bold" fill="#c0caf5">
+    Processing Pipeline — Dual Photography Lab
+  </text>
+  <text x="450" y="56" text-anchor="middle" font-size="12" fill="#9aa5ce">
+    From user input to primal / dual / relighted images
+  </text>
+
+  <!-- ================= Row 1: Input / Scene ================= -->
+  <!-- Step 1: UI Input -->
+  <rect x="40" y="90" width="180" height="90" rx="10" fill="#1f2335" stroke="#7aa2f7" stroke-width="2"/>
+  <text x="130" y="115" text-anchor="middle" font-size="13" font-weight="bold" fill="#7aa2f7">1. UI Input</text>
+  <text x="130" y="138" text-anchor="middle" font-size="11" fill="#c0caf5">scene, resolution,</text>
+  <text x="130" y="154" text-anchor="middle" font-size="11" fill="#c0caf5">SVD rank, cam/proj X,</text>
+  <text x="130" y="170" text-anchor="middle" font-size="11" fill="#c0caf5">pattern type</text>
+
+  <!-- Step 2: Scene Build -->
+  <rect x="260" y="90" width="180" height="90" rx="10" fill="#1f2335" stroke="#7aa2f7" stroke-width="2"/>
+  <text x="350" y="115" text-anchor="middle" font-size="13" font-weight="bold" fill="#7aa2f7">2. Scene Build</text>
+  <text x="350" y="138" text-anchor="middle" font-size="11" fill="#c0caf5">SyntheticScene:</text>
+  <text x="350" y="154" text-anchor="middle" font-size="11" fill="#c0caf5">planes, box, sphere,</text>
+  <text x="350" y="170" text-anchor="middle" font-size="11" fill="#c0caf5">textures, materials</text>
+
+  <!-- Step 3: Ray Cast -->
+  <rect x="480" y="90" width="180" height="90" rx="10" fill="#1f2335" stroke="#7aa2f7" stroke-width="2"/>
+  <text x="570" y="115" text-anchor="middle" font-size="13" font-weight="bold" fill="#7aa2f7">3. Ray Cast + Occlude</text>
+  <text x="570" y="138" text-anchor="middle" font-size="11" fill="#c0caf5">vectorized NumPy,</text>
+  <text x="570" y="154" text-anchor="middle" font-size="11" fill="#c0caf5">shadow rays,</text>
+  <text x="570" y="170" text-anchor="middle" font-size="11" fill="#c0caf5">cos·cos / r² · albedo</text>
+
+  <!-- Step 4: Build T -->
+  <rect x="700" y="90" width="170" height="90" rx="10" fill="#1f2335" stroke="#bb9af7" stroke-width="2"/>
+  <text x="785" y="115" text-anchor="middle" font-size="13" font-weight="bold" fill="#bb9af7">4. Transport Matrix</text>
+  <text x="785" y="138" text-anchor="middle" font-size="11" fill="#c0caf5">T (mn × pq),</text>
+  <text x="785" y="154" text-anchor="middle" font-size="11" fill="#c0caf5">normalized,</text>
+  <text x="785" y="170" text-anchor="middle" font-size="11" fill="#c0caf5">wrapped in class</text>
+
+  <!-- Arrows row 1 -->
+  <line x1="220" y1="135" x2="260" y2="135" stroke="#7aa2f7" stroke-width="2" marker-end="url(#arrBlue)"/>
+  <line x1="440" y1="135" x2="480" y2="135" stroke="#7aa2f7" stroke-width="2" marker-end="url(#arrBlue)"/>
+  <line x1="660" y1="135" x2="700" y2="135" stroke="#bb9af7" stroke-width="2" marker-end="url(#arrPurple)"/>
+
+  <!-- ================= Row 2: Analysis ================= -->
+  <!-- Step 5: SVD -->
+  <rect x="40" y="230" width="180" height="90" rx="10" fill="#1f2335" stroke="#bb9af7" stroke-width="2"/>
+  <text x="130" y="255" text-anchor="middle" font-size="13" font-weight="bold" fill="#bb9af7">5. SVD Decomp.</text>
+  <text x="130" y="278" text-anchor="middle" font-size="11" fill="#c0caf5">T = U · Σ · V^T,</text>
+  <text x="130" y="294" text-anchor="middle" font-size="11" fill="#c0caf5">rank-k truncation,</text>
+  <text x="130" y="310" text-anchor="middle" font-size="11" fill="#c0caf5">condition number</text>
+
+  <!-- Step 6: Primal -->
+  <rect x="260" y="230" width="180" height="90" rx="10" fill="#1f2335" stroke="#9ece6a" stroke-width="2"/>
+  <text x="350" y="255" text-anchor="middle" font-size="13" font-weight="bold" fill="#9ece6a">6. Primal Image</text>
+  <text x="350" y="278" text-anchor="middle" font-size="11" fill="#c0caf5">c = T · 1</text>
+  <text x="350" y="294" text-anchor="middle" font-size="11" fill="#c0caf5">(uniform projection,</text>
+  <text x="350" y="310" text-anchor="middle" font-size="11" fill="#c0caf5">camera view)</text>
+
+  <!-- Step 7: Dual -->
+  <rect x="480" y="230" width="180" height="90" rx="10" fill="#1f2335" stroke="#9ece6a" stroke-width="2"/>
+  <text x="570" y="255" text-anchor="middle" font-size="13" font-weight="bold" fill="#9ece6a">7. Dual Image</text>
+  <text x="570" y="278" text-anchor="middle" font-size="11" fill="#c0caf5">p_dual = T^T · 1</text>
+  <text x="570" y="294" text-anchor="middle" font-size="11" fill="#c0caf5">(Helmholtz reciprocity,</text>
+  <text x="570" y="310" text-anchor="middle" font-size="11" fill="#c0caf5">projector view)</text>
+
+  <!-- Step 8: Relight -->
+  <rect x="700" y="230" width="170" height="90" rx="10" fill="#1f2335" stroke="#9ece6a" stroke-width="2"/>
+  <text x="785" y="255" text-anchor="middle" font-size="13" font-weight="bold" fill="#9ece6a">8. Relighting</text>
+  <text x="785" y="278" text-anchor="middle" font-size="11" fill="#c0caf5">c_new = T · p_new</text>
+  <text x="785" y="294" text-anchor="middle" font-size="11" fill="#c0caf5">arbitrary patterns,</text>
+  <text x="785" y="310" text-anchor="middle" font-size="11" fill="#c0caf5">no re-capture</text>
+
+  <!-- Arrows down from T to SVD (curved) -->
+  <path d="M 785 180 Q 785 205 400 205 Q 130 205 130 230" fill="none" stroke="#bb9af7" stroke-width="2" stroke-dasharray="4,3" marker-end="url(#arrPurple)"/>
+  <text x="420" y="200" text-anchor="middle" font-size="10" fill="#9aa5ce">T feeds all analyses</text>
+
+  <!-- Arrows row 2 -->
+  <line x1="220" y1="275" x2="260" y2="275" stroke="#9ece6a" stroke-width="2" marker-end="url(#arrGreen)"/>
+  <line x1="440" y1="275" x2="480" y2="275" stroke="#9ece6a" stroke-width="2" marker-end="url(#arrGreen)"/>
+  <line x1="660" y1="275" x2="700" y2="275" stroke="#9ece6a" stroke-width="2" marker-end="url(#arrGreen)"/>
+
+  <!-- ================= Row 3: Output ================= -->
+  <!-- Step 9: Plotly -->
+  <rect x="150" y="370" width="260" height="90" rx="10" fill="#1f2335" stroke="#e0af68" stroke-width="2"/>
+  <text x="280" y="395" text-anchor="middle" font-size="13" font-weight="bold" fill="#e0af68">9. Plotly Figures + PNG</text>
+  <text x="280" y="418" text-anchor="middle" font-size="11" fill="#c0caf5">heatmaps, SVD spectrum,</text>
+  <text x="280" y="434" text-anchor="middle" font-size="11" fill="#c0caf5">primal / dual / relit</text>
+  <text x="280" y="450" text-anchor="middle" font-size="11" fill="#c0caf5">served to browser</text>
+
+  <!-- Step 10: REST API -->
+  <rect x="490" y="370" width="260" height="90" rx="10" fill="#1f2335" stroke="#e0af68" stroke-width="2"/>
+  <text x="620" y="395" text-anchor="middle" font-size="13" font-weight="bold" fill="#e0af68">10. REST API (alt path)</text>
+  <text x="620" y="418" text-anchor="middle" font-size="11" fill="#c0caf5">/api/simulate, /api/relight,</text>
+  <text x="620" y="434" text-anchor="middle" font-size="11" fill="#c0caf5">/api/svd, /api/spectral-*,</text>
+  <text x="620" y="450" text-anchor="middle" font-size="11" fill="#c0caf5">headless scripting</text>
+
+  <!-- Arrows row 3 -->
+  <path d="M 350 320 Q 350 345 280 345 Q 280 370 280 370" fill="none" stroke="#e0af68" stroke-width="2" marker-end="url(#arrBlue)"/>
+  <path d="M 570 320 Q 570 345 620 345 Q 620 370 620 370" fill="none" stroke="#e0af68" stroke-width="2" marker-end="url(#arrBlue)"/>
+
+  <!-- ================= Legend ================= -->
+  <rect x="40" y="490" width="820" height="50" rx="8" fill="#1a1b26" stroke="#414868" stroke-width="1"/>
+  <circle cx="70" cy="515" r="6" fill="#7aa2f7"/>
+  <text x="85" y="519" font-size="11" fill="#c0caf5">Input / Simulation</text>
+  <circle cx="230" cy="515" r="6" fill="#bb9af7"/>
+  <text x="245" y="519" font-size="11" fill="#c0caf5">Transport matrix core</text>
+  <circle cx="420" cy="515" r="6" fill="#9ece6a"/>
+  <text x="435" y="519" font-size="11" fill="#c0caf5">Imaging operations (c = T·p, p_dual = T^T·c)</text>
+  <circle cx="720" cy="515" r="6" fill="#e0af68"/>
+  <text x="735" y="519" font-size="11" fill="#c0caf5">Output / API</text>
+</svg>
