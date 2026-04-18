@@ -113,6 +113,14 @@ where **p_new** is an arbitrary virtual projector pattern. This enables real-tim
 
 ![System Architecture](docs/svg/architecture.svg)
 
+See [`docs/architecture.md`](docs/architecture.md) for tech-stack rationale, component responsibilities, and deployment models.
+
+### Processing Pipeline
+
+![Processing Pipeline](docs/svg/pipeline.svg)
+
+From UI input to primal / dual / relighted images in one round-trip: scene build → ray-cast occlusion → transport matrix **T** → SVD / primal / dual / relighting.
+
 ---
 
 ## Features
@@ -160,7 +168,7 @@ Open **http://127.0.0.1:8004** in your browser. Select a scene, click "Run Simul
 pytest tests/ -v
 ```
 
-70 tests covering core engine, simulation, and frontend callbacks.
+165 tests covering core engine, simulation, BRDF, spectral transport, calibration, analysis, REST API, and frontend callbacks.
 
 ---
 
@@ -184,13 +192,17 @@ src/
     └── assets/        # CSS styles
 
 docs/
+├── architecture.md             # System design, tech stack, deployment
 ├── 01_technical_reference.md   # Mathematical foundations and algorithms
 ├── 02_user_guide.md            # How to use the application
 ├── 03_history.md               # Development history and changelog
 ├── 04_references.md            # Bibliography and references
 ├── svg/                        # Diagrams
-│   ├── concept_dual_photography.svg
 │   ├── architecture.svg
+│   ├── concept_dual_photography.svg
+│   ├── helmholtz_reciprocity.svg
+│   ├── pipeline.svg
+│   ├── svd_interpretation.svg
 │   └── transport_matrix_theory.svg
 └── img/                        # Generated demo images
 ```
@@ -227,11 +239,13 @@ docs/
 
 See the [docs/](docs/) folder for:
 
+- [Architecture](docs/architecture.md) — System design, tech-stack rationale, component responsibilities, deployment models
 - [Technical Reference](docs/01_technical_reference.md) — Mathematical foundations, ray-casting algorithm, scene types
 - [User Guide](docs/02_user_guide.md) — Installation, usage, recommended experiments
 - [Development History](docs/03_history.md) — Changelog and architectural decisions
 - [References](docs/04_references.md) — Bibliography and related work
 - [Transport Matrix Theory (SVG)](docs/svg/transport_matrix_theory.svg) — Visual explanation of T, SVD, and applications
+- [Processing Pipeline (SVG)](docs/svg/pipeline.svg) — End-to-end flow from UI input to primal/dual/relit images
 
 ---
 
