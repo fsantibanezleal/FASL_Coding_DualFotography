@@ -150,9 +150,9 @@ No display server required — the simulation, API, and SVD layers have zero GUI
 
 ## 8. See Also
 
-- [`docs/01_technical_reference.md`](01_technical_reference.md) — deep equations, ray-casting math, SVD interpretation
-- [`docs/02_user_guide.md`](02_user_guide.md) — running the app, recommended experiments
-- [`docs/03_history.md`](03_history.md) — version-by-version changelog
-- [`docs/04_references.md`](04_references.md) — academic bibliography
+- [`docs/dual_photography_theory.md`](dual_photography_theory.md) — deep equations, ray-casting math, SVD interpretation
+- [`docs/user_guide.md`](user_guide.md) — running the app, recommended experiments
+- [`docs/development_history.md`](development_history.md) — version-by-version changelog
+- [`docs/references.md`](references.md) — academic bibliography
 - [`docs/svg/architecture.svg`](svg/architecture.svg) — visual component diagram
 - [`docs/svg/pipeline.svg`](svg/pipeline.svg) — processing pipeline flow
