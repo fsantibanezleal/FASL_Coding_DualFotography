@@ -170,6 +170,18 @@ pytest tests/ -v
 
 165 tests covering core engine, simulation, BRDF, spectral transport, calibration, analysis, REST API, and frontend callbacks.
 
+### Port Assignment
+
+| Service | Port | URL |
+|---------|------|-----|
+| Dash frontend | **8004** | http://127.0.0.1:8004 |
+
+Port 8004 is reserved for Dual Photography Lab in the Felipe Santibáñez-Leal (FASL) science-repo portfolio. The canonical port ledger — covering every repo hosted on the Hetzner FASL-prod VPS — lives in `CAOS_MANAGE`:
+
+- [`CAOS_MANAGE/infrastructure/vps/hetzner-fasl-prod/README.md`](../../_Web_Projects/CAOS_MANAGE/infrastructure/vps/hetzner-fasl-prod/README.md) — global port allocations and reverse-proxy mapping
+
+Change the port only after updating the ledger to avoid collisions with sibling projects (SCIAN_LEO_CPM :8001, CEFOP_DinHot :8003, etc.).
+
 ---
 
 ## Project Structure
@@ -193,10 +205,10 @@ src/
 
 docs/
 ├── architecture.md             # System design, tech stack, deployment
-├── 01_technical_reference.md   # Mathematical foundations and algorithms
-├── 02_user_guide.md            # How to use the application
-├── 03_history.md               # Development history and changelog
-├── 04_references.md            # Bibliography and references
+├── dual_photography_theory.md  # Mathematical foundations and algorithms
+├── user_guide.md               # How to use the application
+├── development_history.md      # Development history and changelog
+├── references.md               # Bibliography and references
 ├── svg/                        # Diagrams
 │   ├── architecture.svg
 │   ├── concept_dual_photography.svg
@@ -229,21 +241,15 @@ docs/
 
 ---
 
-### Port
-
-**8004** -- http://127.0.0.1:8004
-
----
-
 ## Documentation
 
 See the [docs/](docs/) folder for:
 
 - [Architecture](docs/architecture.md) — System design, tech-stack rationale, component responsibilities, deployment models
-- [Technical Reference](docs/01_technical_reference.md) — Mathematical foundations, ray-casting algorithm, scene types
-- [User Guide](docs/02_user_guide.md) — Installation, usage, recommended experiments
-- [Development History](docs/03_history.md) — Changelog and architectural decisions
-- [References](docs/04_references.md) — Bibliography and related work
+- [Dual Photography Theory](docs/dual_photography_theory.md) — Mathematical foundations, ray-casting algorithm, scene types
+- [User Guide](docs/user_guide.md) — Installation, usage, recommended experiments
+- [Development History](docs/development_history.md) — Changelog and architectural decisions
+- [References](docs/references.md) — Bibliography and related work
 - [Transport Matrix Theory (SVG)](docs/svg/transport_matrix_theory.svg) — Visual explanation of T, SVD, and applications
 - [Processing Pipeline (SVG)](docs/svg/pipeline.svg) — End-to-end flow from UI input to primal/dual/relit images
 
