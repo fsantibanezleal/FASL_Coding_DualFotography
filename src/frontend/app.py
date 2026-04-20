@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import io
 import base64
+import time
 import traceback
 from datetime import datetime
 
@@ -175,6 +176,148 @@ def _make_relight_pattern(name: str, h: int, w: int) -> np.ndarray:
         pattern[:] = 1.0
 
     return pattern
+
+
+# ---------------------------------------------------------------------------
+# Help / usage content (condensed from docs/user_guide.md)
+# ---------------------------------------------------------------------------
+HELP_MARKDOWN = """
+### Quick Start
+
+1. Pick a **Scene Type** (Box + Wall is the classic demo).
+2. Choose a **Resolution** (32x32 is a good balance).
+3. Click **Run Simulation**.
+4. Once done, pick a **Relighting Pattern** and click **Relight**.
+
+### Controls
+
+| Control | What it does |
+|---|---|
+| **Scene Type** | 3D scene geometry. Box + Wall shows occlusion well. |
+| **Resolution** | N x N pixels. Higher = more detail, slower. |
+| **Surface Albedo** | Reflectance; 0.1 dark, 1.0 white. |
+| **SVD Rank** | Truncation rank for the dual image. Full = no compression. |
+| **Light Bounces** | 0 = direct only; >=1 enables indirect light. |
+| **Projector/Camera X** | Horizontal positions. Bigger gap = more parallax. |
+
+### What you are seeing
+
+- **Primal image**: camera view under uniform projector illumination, `c = T.1`.
+- **Dual image**: projector view via Helmholtz reciprocity, `p = T^T.1`.
+- **SVD spectrum**: singular values of T; a steep drop means low-rank transport.
+- **Relighting**: reuses the captured T to synthesize novel illuminations with no re-capture.
+
+### Keyboard shortcuts
+
+| Key | Action |
+|---|---|
+| `?` or `/` | Open this Help dialog |
+| `Esc` | Close the Help dialog |
+| `r` | Focus Run Simulation button |
+| `l` | Focus Relight button |
+
+Full documentation lives in `docs/user_guide.md` in the repo.
+"""
+
+
+# Clientside JS: bind keyboard shortcuts that set a hidden dcc.Input value.
+# Dash then reacts via a normal callback on that Input. Kept tiny on purpose.
+KEYBOARD_JS = """
+if (!window.__dp_kbd_bound) {
+  window.__dp_kbd_bound = true;
+  document.addEventListener('keydown', function(e) {
+    var target = e.target || {};
+    var tag = (target.tagName || '').toLowerCase();
+    if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+    var el = document.getElementById('kbd-shim');
+    if (!el) return;
+    if (e.key === '?' || e.key === '/') {
+      el.value = 'help:' + Date.now();
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      e.preventDefault();
+    } else if (e.key === 'Escape') {
+      el.value = 'close:' + Date.now();
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+    } else if (e.key === 'r' || e.key === 'R') {
+      var rb = document.getElementById('run-btn'); if (rb) rb.focus();
+    } else if (e.key === 'l' || e.key === 'L') {
+      var lb = document.getElementById('relight-btn'); if (lb) lb.focus();
+    }
+  });
+}
+"""
+
+
+# ---------------------------------------------------------------------------
+# Layout helpers for new components (Help modal, status bar, tooltips)
+# ---------------------------------------------------------------------------
+def _help_modal() -> dbc.Modal:
+    """Build the Help modal displayed on `?` key or Help button click."""
+    return dbc.Modal(
+        [
+            dbc.ModalHeader(dbc.ModalTitle("Dual Photography Lab - Help")),
+            dbc.ModalBody(dcc.Markdown(HELP_MARKDOWN)),
+            dbc.ModalFooter(
+                dbc.Button("Close", id="help-close-btn", className="ms-auto", n_clicks=0)
+            ),
+        ],
+        id="help-modal",
+        is_open=False,
+        size="lg",
+        scrollable=True,
+    )
+
+
+def _status_bar() -> dbc.Card:
+    """Build the run-status bar shown above the controls.
+
+    Reflects the last completed simulation: scene, resolution, bounces, and
+    elapsed seconds. Driven by `status-store` written from `run_simulation`.
+    """
+    return dbc.Card(
+        dbc.CardBody(
+            [
+                html.Div(
+                    [
+                        html.Span("Status: ", className="text-muted small"),
+                        html.Span(
+                            "Idle - no simulation run yet.",
+                            id="status-bar-text",
+                            className="small",
+                        ),
+                    ],
+                    className="d-flex align-items-center justify-content-between",
+                )
+            ],
+            className="py-2",
+        ),
+        className="mb-3",
+        style={"backgroundColor": "rgba(0,0,0,0.25)"},
+    )
+
+
+# Controls that receive a tooltip. Order drives generation in _tooltips().
+TOOLTIP_TARGETS: list[tuple[str, str]] = [
+    ("scene-type", "3D scene geometry. Box + Wall is the canonical demo."),
+    ("resolution", "Image resolution (N x N). Higher is slower but crisper."),
+    ("albedo", "Surface reflectance. 0.1 is dark, 1.0 is white."),
+    ("svd-rank", "SVD truncation rank for the dual image. 'Full' = no truncation."),
+    ("n-bounces", "Number of indirect light bounces. 0 disables inter-reflections."),
+    ("proj-x", "Projector X position. Larger spread = more parallax."),
+    ("cam-x", "Camera X position. Larger spread = more parallax."),
+    ("run-btn", "Run a full dual photography simulation."),
+    ("relight-pattern", "Illumination pattern for relighting."),
+    ("relight-btn", "Relight the captured scene with the chosen pattern."),
+    ("help-open-btn", "Open the Help dialog (or press '?')."),
+]
+
+
+def _tooltips() -> list:
+    """Build `dbc.Tooltip`s bound to every interactive control."""
+    return [
+        dbc.Tooltip(text, target=target_id, placement="right")
+        for target_id, text in TOOLTIP_TARGETS
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -421,7 +564,18 @@ app.layout = dbc.Container([
     dbc.Row([
         dbc.Col(
             html.H2("Dual Photography Lab", className="text-center my-3"),
-            width=12,
+            width=10,
+        ),
+        dbc.Col(
+            dbc.Button(
+                "Help (?)",
+                id="help-open-btn",
+                color="secondary",
+                outline=True,
+                className="float-end my-3",
+                n_clicks=0,
+            ),
+            width=2,
         ),
     ]),
     dbc.Row([
@@ -435,6 +589,8 @@ app.layout = dbc.Container([
             width=12,
         ),
     ]),
+    # Status bar (last simulation summary)
+    dbc.Row([dbc.Col(_status_bar(), width=12)]),
     dbc.Row([
         dbc.Col(_control_panel(), md=3),
         dbc.Col(_results_panel(), md=9),
@@ -460,10 +616,27 @@ app.layout = dbc.Container([
             ])),
         ], width=12),
     ], className="mb-3"),
+    # Help modal + tooltips on all controls
+    _help_modal(),
+    *_tooltips(),
+    # Hidden keyboard shim: clientside JS writes a timestamped value here
+    # (e.g. "help:172..." or "close:172...") that a callback observes.
+    dcc.Input(id="kbd-shim", type="hidden", value=""),
     # Hidden stores
     dcc.Store(id="transport-store", data=None),
     dcc.Store(id="log-store", data=[]),
+    dcc.Store(id="status-store", data={
+        "scene": None, "resolution": None, "bounces": None, "elapsed_s": None,
+    }),
 ], fluid=True, className="py-3")
+
+
+# Install keyboard-shim JS once at load time.
+app.clientside_callback(
+    f"function(trigger) {{ {KEYBOARD_JS} return window.dash_clientside.no_update; }}",
+    Output("kbd-shim", "style"),
+    Input("kbd-shim", "id"),
+)
 
 
 # ---------------------------------------------------------------------------
@@ -500,6 +673,7 @@ def update_svd_options(resolution_str: str):
     Output("transport-store", "data"),
     Output("log-store", "data", allow_duplicate=True),
     Output("activity-log", "children", allow_duplicate=True),
+    Output("status-store", "data"),
     Input("run-btn", "n_clicks"),
     State("scene-type", "value"),
     State("resolution", "value"),
@@ -531,6 +705,7 @@ def run_simulation(
     # Clear and show processing
     log_entries.append(_log_entry("Processing..."))
 
+    t_start = time.perf_counter()
     try:
         resolution = int(resolution_str)
         albedo = float(albedo_str)
@@ -638,15 +813,23 @@ def run_simulation(
             "cam_shape": list(cam_shape),
         }
 
+        elapsed_s = time.perf_counter() - t_start
         log_entries.append(_log_entry(
             f"Transport matrix computed: {result.transport.T.shape[0]}x"
             f"{result.transport.T.shape[1]}, cond={cond_str}"
         ))
-        log_entries.append(_log_entry("Simulation complete"))
+        log_entries.append(_log_entry(f"Simulation complete ({elapsed_s:.2f}s)"))
+
+        status_data = {
+            "scene": scene_type,
+            "resolution": resolution,
+            "bounces": n_bounces,
+            "elapsed_s": round(elapsed_s, 2),
+        }
 
         return (
             primal_src, dual_src, fig, analysis_children, status, store_data,
-            log_entries, _render_log(log_entries),
+            log_entries, _render_log(log_entries), status_data,
         )
 
     except Exception as e:
@@ -693,6 +876,47 @@ def run_relighting(n_clicks, pattern_name, store_data, log_data):
     return (
         _numpy_to_b64_img(pattern), _numpy_to_b64_img(relighted),
         log_entries, _render_log(log_entries),
+    )
+
+
+@app.callback(
+    Output("help-modal", "is_open"),
+    Input("help-open-btn", "n_clicks"),
+    Input("help-close-btn", "n_clicks"),
+    Input("kbd-shim", "value"),
+    State("help-modal", "is_open"),
+    prevent_initial_call=True,
+)
+def toggle_help_modal(_open_clicks, _close_clicks, kbd_value, is_open):
+    """Open/close the Help modal on button clicks or `?`/`Esc` keys."""
+    trigger = ctx.triggered_id
+    if trigger == "help-open-btn":
+        return True
+    if trigger == "help-close-btn":
+        return False
+    if trigger == "kbd-shim" and isinstance(kbd_value, str):
+        if kbd_value.startswith("help:"):
+            return True
+        if kbd_value.startswith("close:"):
+            return False
+    raise PreventUpdate
+
+
+@app.callback(
+    Output("status-bar-text", "children"),
+    Input("status-store", "data"),
+)
+def update_status_bar(status_data):
+    """Render the status bar from the last-run status-store payload."""
+    if not status_data or status_data.get("scene") is None:
+        return "Idle - no simulation run yet."
+    scene = status_data.get("scene")
+    res = status_data.get("resolution")
+    bounces = status_data.get("bounces")
+    elapsed = status_data.get("elapsed_s")
+    return (
+        f"Last run: scene={scene}, resolution={res}x{res}, "
+        f"bounces={bounces}, elapsed={elapsed:.2f}s"
     )
 
 

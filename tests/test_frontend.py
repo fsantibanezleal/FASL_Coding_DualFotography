@@ -8,10 +8,15 @@ import numpy as np
 import pytest
 
 from src.frontend.app import (
+    HELP_MARKDOWN,
+    SCENE_OPTIONS,
+    TOOLTIP_TARGETS,
     _make_relight_pattern,
     _numpy_to_b64_img,
     run_simulation,
     run_relighting,
+    toggle_help_modal,
+    update_status_bar,
     update_svd_options,
 )
 
@@ -89,7 +94,7 @@ class TestCallbacks:
 
     def test_run_simulation_produces_outputs(self):
         """Simulation callback returns all 8 outputs with valid types."""
-        primal, dual, fig, analysis, status, store, _log, _log_ui = run_simulation(
+        primal, dual, fig, analysis, status, store, _log, _log_ui, status_data = run_simulation(
             n_clicks=1,
             scene_type="box_and_wall",
             resolution_str="8",
@@ -117,7 +122,7 @@ class TestCallbacks:
 
     def test_run_simulation_with_svd_rank(self):
         """Simulation works with SVD truncation enabled."""
-        primal, dual, fig, analysis, status, store, _log, _log_ui = run_simulation(
+        primal, dual, fig, analysis, status, store, _log, _log_ui, status_data = run_simulation(
             n_clicks=1,
             scene_type="two_planes",
             resolution_str="8",
@@ -135,7 +140,7 @@ class TestCallbacks:
 
     def test_run_simulation_with_inter_reflections(self):
         """Simulation works with inter-reflections enabled."""
-        primal, dual, fig, analysis, status, store, _log, _log_ui = run_simulation(
+        primal, dual, fig, analysis, status, store, _log, _log_ui, status_data = run_simulation(
             n_clicks=1,
             scene_type="corner_room",
             resolution_str="8",
@@ -151,7 +156,7 @@ class TestCallbacks:
     def test_run_relighting_produces_images(self):
         """Relighting callback produces two valid images."""
         # First run a simulation to get store_data
-        _, _, _, _, _, store, _, _ = run_simulation(
+        _, _, _, _, _, store, _, _, _ = run_simulation(
             n_clicks=1,
             scene_type="box_and_wall",
             resolution_str="8",
@@ -183,7 +188,7 @@ class TestCallbacks:
     ])
     def test_all_scene_types_work(self, scene):
         """Every scene type can be simulated without errors."""
-        primal, dual, fig, analysis, status, store, _log, _log_ui = run_simulation(
+        primal, dual, fig, analysis, status, store, _log, _log_ui, status_data = run_simulation(
             n_clicks=1,
             scene_type=scene,
             resolution_str="8",
@@ -196,3 +201,118 @@ class TestCallbacks:
         )
         assert primal.startswith("data:image/png;base64,")
         assert store is not None
+
+
+class TestHelpersAndStatusBar:
+    """Tests covering the Help modal, status bar and tooltip wiring (issue #25)."""
+
+    def test_help_markdown_is_non_trivial(self):
+        """Help content has headings and shortcut table."""
+        assert "Quick Start" in HELP_MARKDOWN
+        assert "Keyboard shortcuts" in HELP_MARKDOWN
+        assert "?" in HELP_MARKDOWN
+
+    def test_tooltip_targets_cover_every_select(self):
+        """Every interactive select/button id in the layout has a tooltip."""
+        ids = {t[0] for t in TOOLTIP_TARGETS}
+        required = {
+            "scene-type", "resolution", "albedo", "svd-rank", "n-bounces",
+            "proj-x", "cam-x", "run-btn", "relight-pattern", "relight-btn",
+            "help-open-btn",
+        }
+        missing = required - ids
+        assert not missing, f"Missing tooltips for: {missing}"
+
+    def test_tooltip_descriptions_are_non_empty(self):
+        """Tooltip descriptions are descriptive, not placeholders."""
+        for target, text in TOOLTIP_TARGETS:
+            assert len(text) >= 15, f"Tooltip for {target} is too short: {text}"
+
+    def test_update_status_bar_idle_when_empty(self):
+        """Status bar shows the idle string when no simulation has run."""
+        text = update_status_bar(None)
+        assert "Idle" in text
+
+    def test_update_status_bar_idle_on_empty_dict(self):
+        """Status bar shows idle when scene is None (fresh store)."""
+        text = update_status_bar({"scene": None, "resolution": None,
+                                   "bounces": None, "elapsed_s": None})
+        assert "Idle" in text
+
+    def test_update_status_bar_formats_last_run(self):
+        """Status bar renders scene/resolution/bounces/elapsed for a run."""
+        text = update_status_bar({
+            "scene": "box_and_wall", "resolution": 16,
+            "bounces": 0, "elapsed_s": 1.23,
+        })
+        assert "box_and_wall" in text
+        assert "16x16" in text
+        assert "bounces=0" in text
+        assert "1.23s" in text
+
+    def test_run_simulation_emits_status_data(self):
+        """`run_simulation` populates the status-store payload."""
+        *_, status_data = run_simulation(
+            n_clicks=1,
+            scene_type="box_and_wall",
+            resolution_str="8",
+            albedo_str="0.8",
+            svd_rank_str="0",
+            n_bounces_str="0",
+            proj_x_str="-1.5",
+            cam_x_str="1.5",
+            log_data=[],
+        )
+        assert status_data["scene"] == "box_and_wall"
+        assert status_data["resolution"] == 8
+        assert status_data["bounces"] == 0
+        assert isinstance(status_data["elapsed_s"], float)
+        assert status_data["elapsed_s"] >= 0
+
+    def test_scene_options_have_tooltip(self):
+        """Every declared scene type has a human-readable label."""
+        for opt in SCENE_OPTIONS:
+            assert "label" in opt and "value" in opt
+            assert len(opt["label"]) >= 3
+
+
+class TestHelpModalToggle:
+    """Tests for the help-modal open/close callback."""
+
+    def test_toggle_opens_on_button_click(self):
+        """Clicking the open button opens the modal."""
+        from unittest.mock import patch
+        # The callback reads `ctx.triggered_id` from dash; patch it.
+        with patch("src.frontend.app.ctx") as mock_ctx:
+            mock_ctx.triggered_id = "help-open-btn"
+            assert toggle_help_modal(1, 0, "", False) is True
+
+    def test_toggle_closes_on_close_button(self):
+        """Close button closes the modal."""
+        from unittest.mock import patch
+        with patch("src.frontend.app.ctx") as mock_ctx:
+            mock_ctx.triggered_id = "help-close-btn"
+            assert toggle_help_modal(1, 1, "", True) is False
+
+    def test_toggle_opens_on_help_key(self):
+        """Keyboard shim with 'help:' prefix opens the modal."""
+        from unittest.mock import patch
+        with patch("src.frontend.app.ctx") as mock_ctx:
+            mock_ctx.triggered_id = "kbd-shim"
+            assert toggle_help_modal(0, 0, "help:12345", False) is True
+
+    def test_toggle_closes_on_escape(self):
+        """Keyboard shim with 'close:' prefix closes the modal."""
+        from unittest.mock import patch
+        with patch("src.frontend.app.ctx") as mock_ctx:
+            mock_ctx.triggered_id = "kbd-shim"
+            assert toggle_help_modal(0, 0, "close:12345", True) is False
+
+    def test_toggle_ignores_unrelated_shim(self):
+        """Unknown shim values are ignored via PreventUpdate."""
+        from dash.exceptions import PreventUpdate
+        from unittest.mock import patch
+        with patch("src.frontend.app.ctx") as mock_ctx:
+            mock_ctx.triggered_id = "kbd-shim"
+            with pytest.raises(PreventUpdate):
+                toggle_help_modal(0, 0, "garbage", False)
