@@ -1,5 +1,8 @@
 # Dual Photography Lab
 
+[![License](https://img.shields.io/github/license/fsantibanezleal/FASL_Coding_DualFotography)](LICENSE)
+[![Live demo](https://img.shields.io/badge/demo-live-2ea44f)](https://dual.fasl-work.com)
+
 Interactive application for **Dual Photography** — a computational imaging technique that reconstructs how a scene looks from a projector's viewpoint by exploiting **Helmholtz reciprocity** and the **light transport matrix**.
 
 Based on the work by Sen et al. (SIGGRAPH 2005).
